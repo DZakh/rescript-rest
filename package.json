@@ -1,0 +1,35 @@
+{
+  "name": "rescript-rest",
+  "version": "0.1.0",
+  "description": "ReScript RPC-like client, contract, and server implementation for a pure REST API",
+  "keywords": [
+    "rest",
+    "api",
+    "contract",
+    "http",
+    "fetch",
+    "rescript",
+    "rescript-schema"
+  ],
+  "homepage": "https://github.com/DZakh/rescript-rest#readme",
+  "bugs": {
+    "url": "https://github.com/DZakh/rescript-rest/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DZakh/rescript-rest.git"
+  },
+  "license": "MIT",
+  "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
+  "scripts": {
+    "res": "rescript -w",
+    "res:build": "rescript",
+    "res:clean": "rescript clean"
+  },
+  "devDependencies": {
+    "rescript": "11.1.0"
+  },
+  "peerDependencies": {
+    "rescript": "11.x"
+  }
+}
