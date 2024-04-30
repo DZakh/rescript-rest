@@ -24,12 +24,20 @@
   "scripts": {
     "res": "rescript -w",
     "res:build": "rescript",
-    "res:clean": "rescript clean"
+    "res:clean": "rescript clean",
+    "test": "ava"
   },
   "devDependencies": {
+    "@dzakh/rescript-ava": "3.0.0",
+    "ava": "5.2.x",
     "rescript": "11.1.0"
   },
   "peerDependencies": {
     "rescript": "11.x"
+  },
+  "ava": {
+    "files": [
+      "__tests__/**/*_test.res.js"
+    ]
   }
 }

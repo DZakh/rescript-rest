@@ -1,14 +1,21 @@
 {
   "name": "rescript-rest",
   "namespace": false,
-  "sources": {
-    "dir": "src",
-    "subdirs": true
-  },
+  "sources": [
+    {
+      "dir": "src",
+      "subdirs": true
+    },
+    {
+      "dir": "__tests__",
+      "type": "dev"
+    }
+  ],
   "package-specs": {
     "module": "commonjs",
     "in-source": true
   },
   "suffix": ".res.js",
-  "bs-dependencies": []
+  "bs-dependencies": [],
+  "bs-dev-dependencies": ["@dzakh/rescript-ava"]
 }
