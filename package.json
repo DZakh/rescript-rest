@@ -30,10 +30,12 @@
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
-    "rescript": "11.1.0"
+    "rescript": "11.1.0",
+    "rescript-schema": "6.4.0"
   },
   "peerDependencies": {
-    "rescript": "11.x"
+    "rescript": "11.x",
+    "rescript-schema": "6.x"
   },
   "ava": {
     "files": [
