@@ -82,6 +82,9 @@ type routeDefinition<'variables> = {
   method: string,
   path: string,
   schema: s => 'variables,
+  summary?: string,
+  description?: string,
+  deprecated?: bool,
 }
 type routeParams<'variables> = {
   definition: routeDefinition<'variables>,

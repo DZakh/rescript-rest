@@ -1,4 +1,4 @@
-# rescript-rest 😴
+# ReScript Rest 😴
 
 - **RPC-like client with no codegen**  
   Fully typed RPC-like client, with no need for code generation!
