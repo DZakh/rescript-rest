@@ -3,6 +3,7 @@
 
 var Ava = require("ava").default;
 var Rest = require("../src/Rest.res.js");
+var Js_dict = require("rescript/lib/js/js_dict.js");
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
 Ava("Test simple POST request", (async function (t) {
@@ -12,6 +13,10 @@ Ava("Test simple POST request", (async function (t) {
                         TAG: "JsonString",
                         _0: "{\"user_name\":\"Dmitry\"}"
                       },
+                      headers: Js_dict.fromArray([[
+                              "X-Version",
+                              1
+                            ]]),
                       method: "POST",
                       path: "http://localhost:3000/game"
                     });
@@ -27,15 +32,17 @@ Ava("Test simple POST request", (async function (t) {
           return {
                   method: "POST",
                   path: "/game",
-                  schema: (function (s) {
+                  variables: (function (s) {
                       return {
-                              userName: s.field("user_name", S$RescriptSchema.string)
+                              userName: s.field("user_name", S$RescriptSchema.string),
+                              version: s.header("X-Version", S$RescriptSchema.$$int)
                             };
                     })
                 };
         };
         t.deepEqual(await client.call(createGame, {
-                  userName: "Dmitry"
+                  userName: "Dmitry",
+                  version: 1
                 }), {
               body: {
                 TAG: "JsonString",
@@ -50,6 +57,7 @@ Ava("Test simple GET request", (async function (t) {
         var client = Rest.client("http://localhost:3000", (async function (args) {
                 t.deepEqual(args, {
                       body: undefined,
+                      headers: undefined,
                       method: "GET",
                       path: "http://localhost:3000/height"
                     });
@@ -65,7 +73,7 @@ Ava("Test simple GET request", (async function (t) {
           return {
                   method: "GET",
                   path: "/height",
-                  schema: (function (param) {
+                  variables: (function (param) {
                       
                     })
                 };

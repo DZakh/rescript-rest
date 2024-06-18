@@ -10,6 +10,7 @@ asyncTest("Test simple POST request", async t => {
       {
         path: "http://localhost:3000/game",
         body: Some(JsonString(`{"user_name":"Dmitry"}`)),
+        headers: Some(Js.Dict.fromArray([("X-Version", 1->Obj.magic)])),
         method: "POST",
       },
     )
@@ -19,14 +20,15 @@ asyncTest("Test simple POST request", async t => {
   let createGame = Rest.route(() => {
     path: "/game",
     method: "POST",
-    schema: s =>
+    variables: s =>
       {
         "userName": s.field("user_name", S.string),
+        "version": s.header("X-Version", S.int),
       },
   })
 
   t->Assert.deepEqual(
-    await client.call(createGame, ~variables={"userName": "Dmitry"}),
+    await client.call(createGame, ~variables={"userName": "Dmitry", "version": 1}),
     {body: JsonString("true"), status: 200},
   )
 
@@ -42,6 +44,7 @@ asyncTest("Test simple GET request", async t => {
       {
         path: "http://localhost:3000/height",
         body: None,
+        headers: None,
         method: "GET",
       },
     )
@@ -51,7 +54,7 @@ asyncTest("Test simple GET request", async t => {
   let getHeight = Rest.route(() => {
     path: "/height",
     method: "GET",
-    schema: _ => (),
+    variables: _ => (),
   })
 
   t->Assert.deepEqual(

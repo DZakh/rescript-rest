@@ -4,7 +4,7 @@ open RescriptSchema
 
 module ApiFetcher: {
   type body = JsonString(string) | Text(string) | Blob(unknown)
-  type args = {body: option<body>, method: string, path: string}
+  type args = {body: option<body>, headers: option<dict<unknown>>, method: string, path: string}
   type return = {body: body, status: int}
   type t = args => promise<return>
 
@@ -21,13 +21,12 @@ module ApiFetcher: {
 
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
-  fieldOr: 'value. (string, S.t<'value>, 'value) => 'value,
-  tag: 'value. (string, 'value) => unit,
+  header: 'value. (string, S.t<'value>) => 'value,
 }
 type routeDefinition<'variables> = {
   method: string,
   path: string,
-  schema: s => 'variables,
+  variables: s => 'variables,
   summary?: string,
   description?: string,
   deprecated?: bool,

@@ -7,22 +7,25 @@ var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 async function $$default(args) {
   var match = args.body;
   var match$1 = args.body;
+  var match$2 = args.headers;
   var tmp;
   if (match$1 !== undefined) {
     switch (match$1.TAG) {
       case "JsonString" :
-          tmp = {
-            "content-type": "application/json"
-          };
+          tmp = match$2 !== undefined ? Object.assign({
+                  "content-type": "application/json"
+                }, match$2) : ({
+                "content-type": "application/json"
+              });
           break;
       case "Text" :
       case "Blob" :
-          tmp = undefined;
+          tmp = match$2 !== undefined ? match$2 : undefined;
           break;
       
     }
   } else {
-    tmp = undefined;
+    tmp = match$2 !== undefined ? match$2 : undefined;
   }
   var result = await fetch(args.path, {
         method: args.method,
@@ -73,35 +76,21 @@ function client(baseUrl, apiOpt) {
     if (r !== undefined) {
       return r;
     }
-    var definition = route();
-    var isBodyUsed = {
-      contents: false
-    };
-    var bodySchema = S$RescriptSchema.object(function (s) {
-          var field = function (fieldName, schema) {
-            isBodyUsed.contents = true;
-            return s.f(fieldName, schema);
-          };
-          var tag = function (tag$1, asValue) {
-            isBodyUsed.contents = true;
-            s.t(tag$1, asValue);
-          };
-          var fieldOr = function (fieldName, schema, or) {
-            isBodyUsed.contents = true;
-            return s.o(fieldName, schema, or);
-          };
-          return definition.schema({
-                      field: field,
-                      fieldOr: fieldOr,
-                      tag: tag
+    var routeDefinition = route();
+    var variablesSchema = S$RescriptSchema.object(function (s) {
+          return routeDefinition.variables({
+                      field: (function (fieldName, schema) {
+                          return s.nestedField("body", fieldName, schema);
+                        }),
+                      header: (function (fieldName, schema) {
+                          return s.nestedField("headers", fieldName, schema);
+                        })
                     });
         });
-    var params_isBodyUsed = isBodyUsed.contents;
-    var params_path = baseUrl + definition.path;
+    var params_path = baseUrl + routeDefinition.path;
     var params = {
-      definition: definition,
-      isBodyUsed: params_isBodyUsed,
-      bodySchema: bodySchema,
+      definition: routeDefinition,
+      variablesSchema: variablesSchema,
       path: params_path
     };
     initializedRoutes.set(route, params);
@@ -109,14 +98,15 @@ function client(baseUrl, apiOpt) {
   };
   var call = function (route, variables) {
     var match = getRouteParams(route);
-    var j = S$RescriptSchema.serializeToJsonStringWith(variables, match.bodySchema, undefined);
-    var bodyJsonString;
-    bodyJsonString = j.TAG === "Ok" ? j._0 : S$RescriptSchema.$$Error.raise(j._0);
+    var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
+    var body = data.body;
+    var body$1 = body !== undefined ? ({
+          TAG: "JsonString",
+          _0: JSON.stringify(Caml_option.valFromOption(body))
+        }) : undefined;
     return api({
-                body: match.isBodyUsed ? ({
-                      TAG: "JsonString",
-                      _0: bodyJsonString
-                    }) : undefined,
+                body: body$1,
+                headers: data.headers,
                 method: match.definition.method,
                 path: match.path
               });

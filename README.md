@@ -45,7 +45,7 @@ Create `Contract.res` and define your routes:
 let createGame = Rest.route(() => {
   path: "/game",
   method: "POST",
-  schema: s => {
+  variables: s => {
     "userName": s.field("user_name", S.string),
   },
 })

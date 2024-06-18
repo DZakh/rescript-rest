@@ -6,6 +6,11 @@ module Obj = {
   external magic: 'a => 'b = "%identity"
 }
 
+module Dict = {
+  @val
+  external mixin: (dict<'a>, dict<'a>) => dict<'a> = "Object.assign"
+}
+
 module WeakMap = {
   type t<'k, 'v> = Js.WeakMap.t<'k, 'v>
 
@@ -17,14 +22,14 @@ module WeakMap = {
 
 module ApiFetcher = {
   type body = JsonString(string) | Text(string) | Blob(unknown)
-  type args = {body: option<body>, method: string, path: string}
+  type args = {body: option<body>, headers: option<dict<unknown>>, method: string, path: string}
   type return = {body: body, status: int}
   type t = args => promise<return>
 
   %%private(
     external fetch: (
       string,
-      {"body": unknown, "method": string, "headers": {..}},
+      {"body": unknown, "method": string, "headers": option<dict<unknown>>},
     ) => promise<{..}> = "fetch"
   )
 
@@ -47,9 +52,12 @@ module ApiFetcher = {
         | Some(Blob(blob)) => blob->Obj.magic
         | None => ()->Obj.magic
         },
-        "headers": switch args.body {
-        | Some(JsonString(_)) => {"content-type": "application/json"}
-        | _ => ()->Obj.magic
+        "headers": switch (args.body, args.headers) {
+        | (Some(JsonString(_)), None) => Some({"content-type": "application/json"}->Obj.magic)
+        | (Some(JsonString(_)), Some(headers)) =>
+          Some(Dict.mixin({"content-type": "application/json"}->Obj.magic, headers))
+        | (_, Some(_) as h) => h
+        | (_, None) => None
         },
       },
     )
@@ -75,21 +83,19 @@ module ApiFetcher = {
 
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
-  fieldOr: 'value. (string, S.t<'value>, 'value) => 'value,
-  tag: 'value. (string, 'value) => unit,
+  header: 'value. (string, S.t<'value>) => 'value,
 }
 type routeDefinition<'variables> = {
   method: string,
   path: string,
-  schema: s => 'variables,
+  variables: s => 'variables,
   summary?: string,
   description?: string,
   deprecated?: bool,
 }
 type routeParams<'variables> = {
   definition: routeDefinition<'variables>,
-  isBodyUsed: bool,
-  bodySchema: S.t<'variables>,
+  variablesSchema: S.t<'variables>,
   path: string,
 }
 
@@ -109,36 +115,23 @@ let client = (~baseUrl, ~api=ApiFetcher.default) => {
     switch initializedRoutes->WeakMap.get(route) {
     | Some(r) => r
     | None => {
-        let definition = route()
-        let isBodyUsed = ref(false)
-        let bodySchema = S.object(s => {
-          let field = (fieldName, schema) => {
-            isBodyUsed.contents = true
-            s.field(fieldName, schema)
-          }
+        let routeDefinition = route()
 
-          let tag = (tag, asValue) => {
-            isBodyUsed.contents = true
-            s.tag(tag, asValue)
-          }
-
-          let fieldOr = (fieldName, schema, or) => {
-            isBodyUsed.contents = true
-            s.fieldOr(fieldName, schema, or)
-          }
-
-          definition.schema({
-            field,
-            fieldOr,
-            tag,
+        let variablesSchema = S.object(s => {
+          routeDefinition.variables({
+            field: (fieldName, schema) => {
+              s.nestedField("body", fieldName, schema)
+            },
+            header: (fieldName, schema) => {
+              s.nestedField("headers", fieldName, schema)
+            },
           })
         })
 
         let params = {
-          definition,
-          bodySchema,
-          isBodyUsed: isBodyUsed.contents,
-          path: baseUrl ++ definition.path,
+          definition: routeDefinition,
+          variablesSchema,
+          path: baseUrl ++ routeDefinition.path,
         }
 
         let _ = initializedRoutes->WeakMap.set(route, params)
@@ -153,14 +146,18 @@ let client = (~baseUrl, ~api=ApiFetcher.default) => {
       let route = route->(Obj.magic: route<variables> => route<unknown>)
       let variables = variables->(Obj.magic: variables => unknown)
 
-      let {definition, path, bodySchema, isBodyUsed} = getRouteParams(route)
+      let {definition, path, variablesSchema} = getRouteParams(route)
 
-      let bodyJsonString = switch variables->S.serializeToJsonStringWith(bodySchema) {
-      | Ok(j) => j
-      | Error(e) => e->S.Error.raise // TODO: Stop throwing
+      let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
+
+      let body = switch data["body"] {
+      | None => None
+      | Some(body) => Some(ApiFetcher.JsonString(body->Js.Json.stringify))
       }
+
       api({
-        body: isBodyUsed ? Some(JsonString(bodyJsonString)) : None,
+        body,
+        headers: data["headers"],
         path,
         method: definition.method,
       })
