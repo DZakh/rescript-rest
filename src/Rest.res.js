@@ -68,8 +68,58 @@ var ApiFetcher = {
   $$default: $$default
 };
 
-function client(baseUrl, apiOpt) {
+function tokeniseValue(key, value, append) {
+  if (Array.isArray(value)) {
+    value.forEach(function (v, idx) {
+          tokeniseValue(key + "[" + idx.toString() + "]", v, append);
+        });
+    return ;
+  } else if (value === null) {
+    return append(key, "");
+  } else if (value === (void 0)) {
+    return ;
+  } else if (typeof value === "object") {
+    Object.keys(value).forEach(function (k) {
+          tokeniseValue(key + "[" + encodeURIComponent(k) + "]", value[k], append);
+        });
+    return ;
+  } else {
+    return append(key, value);
+  }
+}
+
+function getCompletePath(baseUrl, routePath, maybeQuery, jsonQuery) {
+  var path = baseUrl + routePath;
+  if (maybeQuery !== undefined) {
+    var queryItems = [];
+    var append = function (key, value) {
+      queryItems.push(key + "=" + encodeURIComponent(value));
+    };
+    var queryNames = Object.keys(maybeQuery);
+    for(var idx = 0 ,idx_finish = queryNames.length; idx < idx_finish; ++idx){
+      var queryName = queryNames[idx];
+      var value = maybeQuery[queryName];
+      var key = encodeURIComponent(queryName);
+      if (value !== (void 0)) {
+        if (jsonQuery) {
+          append(key, typeof value === "string" && value !== "true" && value !== "false" && value !== "null" && Number.isNaN(Number(value)) ? value : JSON.stringify(value));
+        } else {
+          tokeniseValue(key, value, append);
+        }
+      }
+      
+    }
+    if (queryItems.length > 0) {
+      path = path + "?" + queryItems.join("&");
+    }
+    
+  }
+  return path;
+}
+
+function client(baseUrl, apiOpt, jsonQueryOpt) {
   var api = apiOpt !== undefined ? apiOpt : $$default;
+  var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var initializedRoutes = new WeakMap();
   var getRouteParams = function (route) {
     var r = initializedRoutes.get(route);
@@ -84,20 +134,22 @@ function client(baseUrl, apiOpt) {
                         }),
                       header: (function (fieldName, schema) {
                           return s.nestedField("headers", fieldName, schema);
+                        }),
+                      query: (function (fieldName, schema) {
+                          return s.nestedField("query", fieldName, schema);
                         })
                     });
         });
-    var params_path = baseUrl + routeDefinition.path;
     var params = {
       definition: routeDefinition,
-      variablesSchema: variablesSchema,
-      path: params_path
+      variablesSchema: variablesSchema
     };
     initializedRoutes.set(route, params);
     return params;
   };
   var call = function (route, variables) {
     var match = getRouteParams(route);
+    var definition = match.definition;
     var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
     var body = data.body;
     var body$1 = body !== undefined ? ({
@@ -107,14 +159,15 @@ function client(baseUrl, apiOpt) {
     return api({
                 body: body$1,
                 headers: data.headers,
-                method: match.definition.method,
-                path: match.path
+                method: definition.method,
+                path: getCompletePath(baseUrl, definition.path, data.query, jsonQuery)
               });
   };
   return {
           call: call,
           baseUrl: baseUrl,
-          api: api
+          api: api,
+          jsonQuery: jsonQuery
         };
 }
 

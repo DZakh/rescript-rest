@@ -22,6 +22,7 @@ module ApiFetcher: {
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
+  query: 'value. (string, S.t<'value>) => 'value,
 }
 type routeDefinition<'variables> = {
   method: string,
@@ -39,6 +40,7 @@ type client = {
   call: 'variables. (route<'variables>, ~variables: 'variables) => promise<ApiFetcher.return>,
   baseUrl: string,
   api: ApiFetcher.t,
+  jsonQuery: bool,
 }
 
-let client: (~baseUrl: string, ~api: ApiFetcher.t=?) => client
+let client: (~baseUrl: string, ~api: ApiFetcher.t=?, ~jsonQuery: bool=?) => client

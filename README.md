@@ -35,39 +35,50 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 }
 ```
 
-## Basic usage
+## Super Simple Example
 
-Create `Contract.res` and define your routes:
+Easily define your API contract somewhere shared, for example, `Contract.res`:
 
 ```rescript
-// Contract.res
-
-let createGame = Rest.route(() => {
-  path: "/game",
-  method: "POST",
+let getPosts = Rest.route(() => {
+  path: "/posts",
+  method: "GET",
   variables: s => {
-    "userName": s.field("user_name", S.string),
+    "skip": s.query("skip", S.int),
+    "take": s.query("take", S.int),
+    "page": s.header("x-pagination-page", S.option(S.int)),
   },
 })
 ```
 
-> 🧠 Currently `rescript-rest` supports only `client`, but the idea is to reuse the file both for `client` and `server`.
-
-Now you can use the contract to perform type-safe calls to your server:
+Consume the api on the client with a RPC-like interface:
 
 ```rescript
-// Client.res
-
 let client = Rest.client(~baseUrl="http://localhost:3000")
 
-let _ = await client.call(Contract.createGame, ~variables={"userName": "Dmitry"})
+let result = await client.call(
+  Contract.getPosts,
+  ~variables={
+    "skip": 0,
+    "take": 10,
+    "page": Some(1),
+  }
+  // ^-- Fully typed!
+)
+
+// ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": 1}` headers.
 ```
+
+> 🧠 Currently `rescript-rest` supports only `client`, but the idea is to reuse the file both for `client` and `server`.
 
 ## Planned features
 
+- [x] Support query params
+- [x] Support headers
 - [ ] Support path params
 - [ ] Implement type-safe response
-- [ ] Support passing headers and fetch options
+- [ ] Support custom fetch options
+- [ ] Support non-json body
 - [ ] Generate OpenAPI from Contract
 - [ ] Generate Contract from OpenAPI
 - [ ] Integrate with Fastify on server-side
