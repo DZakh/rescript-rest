@@ -88,6 +88,7 @@ type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
+  param: 'value. (string, S.t<'value>) => 'value,
 }
 type routeDefinition<'variables> = {
   method: string,
@@ -141,9 +142,31 @@ let rec tokeniseValue = (key, value, ~append) => {
   }
 }
 
+// FIXME: Validate that all defined paths are registered
+// FIXME: Prevent `/` in the path param
+/**
+ * @param path - The URL e.g. /posts/:id
+ * @param maybeParams - The params e.g. `{ id: string }`
+ * @returns - The URL with the params e.g. /posts/123
+ */
+let insertParamsIntoPath = (~path, ~maybeParams) => {
+  path
+  ->Js.String2.unsafeReplaceBy1(%re("/:([^/]+)/g"), (_, p, _, _) => {
+    switch maybeParams {
+    | Some(params) =>
+      switch params->Js.Dict.unsafeGet(p)->(Obj.magic: unknown => option<string>) {
+      | Some(s) => s
+      | None => ""
+      }
+    | None => ""
+    }
+  })
+  ->Js.String2.replaceByRe(%re("/\/\//g"), "/")
+}
+
 // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L347
-let getCompletePath = (~baseUrl, ~routePath, ~maybeQuery, ~jsonQuery) => {
-  let path = ref(baseUrl ++ routePath)
+let getCompletePath = (~baseUrl, ~routePath, ~maybeQuery, ~maybeParams, ~jsonQuery) => {
+  let path = ref(baseUrl ++ insertParamsIntoPath(~path=routePath, ~maybeParams))
 
   switch maybeQuery {
   | None => ()
@@ -215,6 +238,9 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
             query: (fieldName, schema) => {
               s.nestedField("query", fieldName, schema)
             },
+            param: (fieldName, schema) => {
+              s.nestedField("params", fieldName, schema)
+            },
           })
         })
 
@@ -251,6 +277,7 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
           ~baseUrl,
           ~routePath=definition.path,
           ~maybeQuery=data["query"],
+          ~maybeParams=data["params"],
           ~jsonQuery,
         ),
         method: definition.method,

@@ -40,6 +40,21 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 Easily define your API contract somewhere shared, for example, `Contract.res`:
 
 ```rescript
+let createPost = Rest.route(() => {
+  path: "/posts",
+  method: "POST",
+  variables: s => {
+    "title": s.field("title", S.string),
+    "body": s.field("body", S.string),
+  },
+})
+
+let getPost = Rest.route(() => {
+  path: "/posts/:id",
+  method: "GET",
+  variables: s => s.param("id", S.string),
+})
+
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: "GET",
@@ -57,6 +72,22 @@ Consume the api on the client with a RPC-like interface:
 let client = Rest.client(~baseUrl="http://localhost:3000")
 
 let result = await client.call(
+  Contract.createPost,
+  {
+    "title": "How to use ReScript Rest?",
+    "body": "Read the documentation on GitHub",
+  }
+  // ^-- Fully typed!
+) // ℹ️ It'll do a POST request to http://localhost:3000/posts with application/json body
+
+
+let result = await client.call(
+  Contract.getPost,
+  "123"
+  // ^-- Fully typed!
+) // ℹ️ It'll do a GET request to http://localhost:3000/posts/123
+
+let result = await client.call(
   Contract.getPosts,
   {
     "skip": 0,
@@ -64,9 +95,7 @@ let result = await client.call(
     "page": Some(1),
   }
   // ^-- Fully typed!
-)
-
-// ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": 1}` headers.
+) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": 1}` headers
 ```
 
 > 🧠 Currently `rescript-rest` supports only `client`, but the idea is to reuse the file both for `client` and `server`.
@@ -75,7 +104,7 @@ let result = await client.call(
 
 - [x] Support query params
 - [x] Support headers
-- [ ] Support path params
+- [x] Support path params
 - [ ] Implement type-safe response
 - [ ] Support custom fetch options
 - [ ] Support non-json body

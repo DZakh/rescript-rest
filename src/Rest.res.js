@@ -88,8 +88,22 @@ function tokeniseValue(key, value, append) {
   }
 }
 
-function getCompletePath(baseUrl, routePath, maybeQuery, jsonQuery) {
-  var path = baseUrl + routePath;
+function insertParamsIntoPath(path, maybeParams) {
+  return path.replace(/:([^/]+)/g, (function (param, p, param$1, param$2) {
+                  if (maybeParams === undefined) {
+                    return "";
+                  }
+                  var s = maybeParams[p];
+                  if (s !== undefined) {
+                    return s;
+                  } else {
+                    return "";
+                  }
+                })).replace(/\/\//g, "/");
+}
+
+function getCompletePath(baseUrl, routePath, maybeQuery, maybeParams, jsonQuery) {
+  var path = baseUrl + insertParamsIntoPath(routePath, maybeParams);
   if (maybeQuery !== undefined) {
     var queryItems = [];
     var append = function (key, value) {
@@ -137,6 +151,9 @@ function client(baseUrl, apiOpt, jsonQueryOpt) {
                         }),
                       query: (function (fieldName, schema) {
                           return s.nestedField("query", fieldName, schema);
+                        }),
+                      param: (function (fieldName, schema) {
+                          return s.nestedField("params", fieldName, schema);
                         })
                     });
         });
@@ -160,7 +177,7 @@ function client(baseUrl, apiOpt, jsonQueryOpt) {
                 body: body$1,
                 headers: data.headers,
                 method: definition.method,
-                path: getCompletePath(baseUrl, definition.path, data.query, jsonQuery)
+                path: getCompletePath(baseUrl, definition.path, data.query, data.params, jsonQuery)
               });
   };
   return {

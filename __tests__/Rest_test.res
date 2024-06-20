@@ -176,6 +176,22 @@ asyncTest("Example test", async t => {
     {body: JsonString("true"), status: 200}
   })
 
+  let _createPost = Rest.route(() => {
+    path: "/posts",
+    method: "POST",
+    variables: s =>
+      {
+        "title": s.field("title", S.string),
+        "body": s.field("body", S.string),
+      },
+  })
+
+  let _getPost = Rest.route(() => {
+    path: "/posts/:id",
+    method: "GET",
+    variables: s => s.param("id", S.string),
+  })
+
   let getPosts = Rest.route(() => {
     path: "/posts",
     method: "GET",
@@ -194,6 +210,48 @@ asyncTest("Example test", async t => {
         "skip": 0,
         "take": 10,
         "page": Some(1),
+      },
+    ),
+    {body: JsonString("true"), status: 200},
+  )
+
+  t->ExecutionContext.plan(2)
+})
+
+asyncTest("Multiple path params", async t => {
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+    args
+  ): Rest.ApiFetcher.return => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/post/abc/comments/1/123",
+        body: None,
+        headers: None,
+        method: "GET",
+      },
+    )
+    {body: JsonString("true"), status: 200}
+  })
+
+  let getSubComment = Rest.route(() => {
+    path: "/post/:id/comments/:commentId/:commentId2",
+    method: "GET",
+    variables: s =>
+      {
+        "id": s.param("id", S.string),
+        "commentId": s.param("commentId", S.int),
+        "commentId2": s.param("commentId2", S.int),
+      },
+  })
+
+  t->Assert.deepEqual(
+    await client.call(
+      getSubComment,
+      {
+        "id": "abc",
+        "commentId": 1,
+        "commentId2": 123,
       },
     ),
     {body: JsonString("true"), status: 200},

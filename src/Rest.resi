@@ -23,6 +23,7 @@ type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
+  param: 'value. (string, S.t<'value>) => 'value,
 }
 type routeDefinition<'variables> = {
   method: string,
