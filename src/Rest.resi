@@ -37,7 +37,7 @@ type route<'variables>
 external route: (unit => routeDefinition<'variables>) => route<'variables> = "%identity"
 
 type client = {
-  call: 'variables. (route<'variables>, ~variables: 'variables) => promise<ApiFetcher.return>,
+  call: 'variables. (route<'variables>, 'variables) => promise<ApiFetcher.return>,
   baseUrl: string,
   api: ApiFetcher.t,
   jsonQuery: bool,

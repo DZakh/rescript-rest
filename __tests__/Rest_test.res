@@ -28,7 +28,7 @@ asyncTest("Test simple POST request", async t => {
   })
 
   t->Assert.deepEqual(
-    await client.call(createGame, ~variables={"userName": "Dmitry", "version": 1}),
+    await client.call(createGame, {"userName": "Dmitry", "version": 1}),
     {body: JsonString("true"), status: 200},
   )
 
@@ -57,10 +57,7 @@ asyncTest("Test simple GET request", async t => {
     variables: _ => (),
   })
 
-  t->Assert.deepEqual(
-    await client.call(getHeight, ~variables=()),
-    {body: JsonString("true"), status: 200},
-  )
+  t->Assert.deepEqual(await client.call(getHeight, ()), {body: JsonString("true"), status: 200})
 
   t->ExecutionContext.plan(2)
 })
@@ -134,7 +131,7 @@ asyncTest("Test query params encoding to path", async t => {
   })
 
   t->Assert.deepEqual(
-    await client.call(getHeight, ~variables),
+    await client.call(getHeight, variables),
     {body: JsonString("true"), status: 200},
   )
 
@@ -156,7 +153,7 @@ asyncTest("Test query params encoding to path", async t => {
   )
 
   t->Assert.deepEqual(
-    await jsonQueryClient.call(getHeight, ~variables),
+    await jsonQueryClient.call(getHeight, variables),
     {body: JsonString("true"), status: 200},
   )
 
@@ -193,7 +190,7 @@ asyncTest("Example test", async t => {
   t->Assert.deepEqual(
     await client.call(
       getPosts,
-      ~variables={
+      {
         "skip": 0,
         "take": 10,
         "page": Some(1),

@@ -58,7 +58,7 @@ let client = Rest.client(~baseUrl="http://localhost:3000")
 
 let result = await client.call(
   Contract.getPosts,
-  ~variables={
+  {
     "skip": 0,
     "take": 10,
     "page": Some(1),

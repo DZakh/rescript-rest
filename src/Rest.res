@@ -106,7 +106,7 @@ type route<'variables> = unit => routeDefinition<'variables>
 external route: (unit => routeDefinition<'variables>) => route<'variables> = "%identity"
 
 type client = {
-  call: 'variables. (route<'variables>, ~variables: 'variables) => promise<ApiFetcher.return>,
+  call: 'variables. (route<'variables>, 'variables) => promise<ApiFetcher.return>,
   baseUrl: string,
   api: ApiFetcher.t,
   // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
@@ -230,8 +230,8 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
   }
 
   let call:
-    type variables. (route<variables>, ~variables: variables) => promise<ApiFetcher.return> =
-    (route, ~variables) => {
+    type variables. (route<variables>, variables) => promise<ApiFetcher.return> =
+    (route, variables) => {
       let route = route->(Obj.magic: route<variables> => route<unknown>)
       let variables = variables->(Obj.magic: variables => unknown)
 
