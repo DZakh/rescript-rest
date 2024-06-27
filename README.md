@@ -103,6 +103,10 @@ let result = await client.call(
 
 > 🧠 Currently `rescript-rest` supports only `client`, but the idea is to reuse the file both for `client` and `server`.
 
+**Examples from public repositories:**
+
+- [Cli App Rock-Paper-Scissors](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
+
 ## Path Parameters
 
 You can define path parameters by simply adding them to the `path` string with a colon `:` followed by the parameter name.
