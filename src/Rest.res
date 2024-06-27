@@ -2,13 +2,42 @@
 
 open RescriptSchema
 
+module Exn = {
+  type error
+
+  @new
+  external makeError: string => error = "Error"
+
+  let raiseAny = (any: 'any): 'a => any->Obj.magic->raise
+
+  let raiseError: error => 'a = raiseAny
+}
+
 module Obj = {
   external magic: 'a => 'b = "%identity"
 }
 
+module Promise = {
+  type t<+'a> = promise<'a>
+
+  @send
+  external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
+}
+
+module Option = {
+  let unsafeSome: 'a => option<'a> = Obj.magic
+}
+
 module Dict = {
+  @inline
+  let has = (dict, key) => {
+    dict->Js.Dict.unsafeGet(key)->(Obj.magic: 'a => bool)
+  }
+}
+
+module Object = {
   @val
-  external mixin: (dict<'a>, dict<'a>) => dict<'a> = "Object.assign"
+  external mixin: ({..} as 'a, {..}) => 'a = "Object.assign"
 }
 
 module WeakMap = {
@@ -20,19 +49,21 @@ module WeakMap = {
   @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
 }
 
+@inline
+let panic = message => Exn.raiseError(Exn.makeError(`[rescript-rest] ${message}`))
+
 @val
 external encodeURIComponent: string => string = "encodeURIComponent"
 
 module ApiFetcher = {
-  type body = JsonString(string) | Text(string) | Blob(unknown)
-  type args = {body: option<body>, headers: option<dict<unknown>>, method: string, path: string}
-  type return = {body: body, status: int}
-  type t = args => promise<return>
+  type args = {body: option<unknown>, headers: option<dict<unknown>>, method: string, path: string}
+  type response = {data: unknown, status: int, headers: dict<unknown>}
+  type t = args => promise<response>
 
   %%private(
     external fetch: (
       string,
-      {"body": unknown, "method": string, "headers": option<dict<unknown>>},
+      {"method": string, "body": option<unknown>, "headers": option<dict<unknown>>},
     ) => promise<{..}> = "fetch"
   )
 
@@ -44,24 +75,35 @@ module ApiFetcher = {
   * or used in the "api" field of ClientArgs to allow you to hook
   * into the request to run custom logic
   */
-  let default: t = async args => {
+  let default: t = async (args): response => {
+    let body = switch args.body {
+    | None => None
+    | Some(_) =>
+      args.body
+      ->(Obj.magic: option<unknown> => Js.Json.t)
+      ->Js.Json.stringify
+      ->(Obj.magic: string => option<unknown>)
+    }
+    let headers = switch args.body {
+    | None => args.headers
+    | Some(_) => {
+        let contentHeaders = {
+          "content-type": "application/json",
+        }
+
+        (
+          args.headers === None
+            ? contentHeaders
+            : Object.mixin(contentHeaders, args.headers->(Obj.magic: option<dict<unknown>> => {..}))
+        )->(Obj.magic: {..} => option<dict<unknown>>)
+      }
+    }
     let result = await fetch(
       args.path,
       {
         "method": args.method,
-        "body": switch args.body {
-        | Some(JsonString(string)) => string->Obj.magic
-        | Some(Text(string)) => string->Obj.magic
-        | Some(Blob(blob)) => blob->Obj.magic
-        | None => ()->Obj.magic
-        },
-        "headers": switch (args.body, args.headers) {
-        | (Some(JsonString(_)), None) => Some({"content-type": "application/json"}->Obj.magic)
-        | (Some(JsonString(_)), Some(headers)) =>
-          Some(Dict.mixin({"content-type": "application/json"}->Obj.magic, headers))
-        | (_, Some(_) as h) => h
-        | (_, None) => None
-        },
+        "body": body,
+        "headers": headers,
       },
     )
     let contentType = result["headers"]["get"]("content-type")
@@ -70,46 +112,166 @@ module ApiFetcher = {
       if contentType->Js.String2.includes("application/") &&
         contentType->Js.String2.includes("json") => {
         status: result["status"],
-        body: JsonString(await result["json"]()),
+        data: Js.Json.parseExn(await result["json"]())->Obj.magic,
+        headers: result["headers"],
       }
     | Some(contentType) if contentType->Js.String2.includes("text/") => {
         status: result["status"],
-        body: Text(await result["text"]()),
+        data: await result["text"](),
+        headers: result["headers"],
       }
     | _ => {
         status: result["status"],
-        body: Blob(await result["blob"]()),
+        data: await result["blob"](),
+        headers: result["headers"],
       }
     }
   }
 }
 
+module Response = {
+  type status = [
+    | #"1XX"
+    | #"2XX"
+    | #"3XX"
+    | #"4XX"
+    | #"5XX"
+    | #100
+    | #101
+    | #102
+    | #200
+    | #201
+    | #202
+    | #203
+    | #204
+    | #205
+    | #206
+    | #207
+    | #300
+    | #301
+    | #302
+    | #303
+    | #304
+    | #305
+    | #307
+    | #308
+    | #400
+    | #401
+    | #402
+    | #403
+    | #404
+    | #405
+    | #406
+    | #407
+    | #408
+    | #409
+    | #410
+    | #411
+    | #412
+    | #413
+    | #414
+    | #415
+    | #416
+    | #417
+    | #418
+    | #419
+    | #420
+    | #421
+    | #422
+    | #423
+    | #424
+    | #428
+    | #429
+    | #431
+    | #451
+    | #500
+    | #501
+    | #502
+    | #503
+    | #504
+    | #505
+    | #507
+    | #511
+  ]
+
+  type s = {
+    status: status => unit,
+    description: string => unit,
+    data: 'value. S.t<'value> => 'value,
+    field: 'value. (string, S.t<'value>) => 'value,
+    header: 'value. (string, S.t<'value>) => 'value,
+  }
+
+  type t<'response> = {
+    // When it's empty, treat response as a default
+    statuses: array<status>,
+    description: option<string>,
+    schema: S.t<'response>,
+  }
+
+  type builder<'response> = {
+    // When it's empty, treat response as a default
+    statuses: array<status>,
+    mutable description?: string,
+    mutable schema?: S.t<'response>,
+  }
+
+  let register = (
+    map: dict<t<'response>>,
+    status: [< status | #default],
+    builder: builder<'response>,
+  ) => {
+    let key = status->(Obj.magic: [< status | #default] => string)
+    if map->Dict.has(key) {
+      panic(`Response for the "${key}" status registered multiple times`)
+    } else {
+      map->Js.Dict.set(key, builder->(Obj.magic: builder<'response> => t<'response>))
+    }
+  }
+
+  @inline
+  let find = (map: dict<t<'response>>, responseStatus: int): option<t<'response>> => {
+    (map
+    ->Js.Dict.unsafeGet(responseStatus->(Obj.magic: int => string))
+    ->(Obj.magic: t<'response> => bool) ||
+    map
+    ->Js.Dict.unsafeGet((responseStatus / 100)->(Obj.magic: int => string) ++ "XX")
+    ->(Obj.magic: t<'response> => bool) ||
+    map->Js.Dict.unsafeGet("default")->(Obj.magic: t<'response> => bool))
+      ->(Obj.magic: bool => option<t<'response>>)
+  }
+}
+
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
+  body: 'value. S.t<'value> => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
 }
-type routeDefinition<'variables> = {
+type routeDefinition<'variables, 'response> = {
   method: string,
   path: string,
   variables: s => 'variables,
+  responses: array<Response.s => 'response>,
   summary?: string,
   description?: string,
   deprecated?: bool,
 }
-type routeParams<'variables> = {
-  definition: routeDefinition<'variables>,
+type routeParams<'variables, 'response> = {
+  definition: routeDefinition<'variables, 'response>,
   variablesSchema: S.t<'variables>,
+  responses: dict<Response.t<'response>>,
 }
 
-type route<'variables> = unit => routeDefinition<'variables>
-external route: (unit => routeDefinition<'variables>) => route<'variables> = "%identity"
+type route<'variables, 'response> = unit => routeDefinition<'variables, 'response>
+external route: (unit => routeDefinition<'variables, 'response>) => route<'variables, 'response> =
+  "%identity"
 
 type client = {
-  call: 'variables. (route<'variables>, 'variables) => promise<ApiFetcher.return>,
+  call: 'variables 'response. (route<'variables, 'response>, 'variables) => promise<'response>,
   baseUrl: string,
-  api: ApiFetcher.t,
+  fetcher: ApiFetcher.t,
   // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
   jsonQuery: bool,
 }
@@ -218,7 +380,7 @@ let getCompletePath = (~baseUrl, ~routePath, ~maybeQuery, ~maybeParams, ~jsonQue
   path.contents
 }
 
-let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
+let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
   let initializedRoutes = WeakMap.make()
 
   let getRouteParams = route => {
@@ -232,6 +394,9 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
             field: (fieldName, schema) => {
               s.nestedField("body", fieldName, schema)
             },
+            body: schema => {
+              s.field("body", schema)
+            },
             header: (fieldName, schema) => {
               s.nestedField("headers", fieldName, schema)
             },
@@ -244,9 +409,39 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
           })
         })
 
+        let responses = Js.Dict.empty()
+        routeDefinition.responses->Js.Array2.forEach(r => {
+          let builder: Response.builder<unknown> = {
+            statuses: [],
+          }
+          let schema = S.object(s => {
+            r({
+              status: status => {
+                responses->Response.register(status, builder)
+                let _ = builder.statuses->Js.Array2.push(status)
+              },
+              description: d => builder.description = Some(d),
+              field: (fieldName, schema) => {
+                s.nestedField("data", fieldName, schema)
+              },
+              data: schema => {
+                s.field("data", schema)
+              },
+              header: (fieldName, schema) => {
+                s.nestedField("headers", fieldName, schema)
+              },
+            })
+          })
+          if builder.statuses->Js.Array2.length === 0 {
+            responses->Response.register(#default, builder)
+          }
+          builder.schema = Option.unsafeSome(schema)
+        })
+
         let params = {
           definition: routeDefinition,
           variablesSchema,
+          responses,
         }
 
         let _ = initializedRoutes->WeakMap.set(route, params)
@@ -256,22 +451,17 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
   }
 
   let call:
-    type variables. (route<variables>, variables) => promise<ApiFetcher.return> =
+    type variables response. (route<variables, response>, variables) => promise<response> =
     (route, variables) => {
-      let route = route->(Obj.magic: route<variables> => route<unknown>)
+      let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
       let variables = variables->(Obj.magic: variables => unknown)
 
-      let {definition, variablesSchema} = getRouteParams(route)
+      let {definition, variablesSchema, responses} = getRouteParams(route)
 
       let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
-      let body = switch data["body"] {
-      | None => None
-      | Some(body) => Some(ApiFetcher.JsonString(body->Js.Json.stringify))
-      }
-
-      api({
-        body,
+      fetcher({
+        body: data["body"],
         headers: data["headers"],
         path: getCompletePath(
           ~baseUrl,
@@ -281,11 +471,22 @@ let client = (~baseUrl, ~api=ApiFetcher.default, ~jsonQuery=false) => {
           ~jsonQuery,
         ),
         method: definition.method,
+      })->Promise.thenResolve(fetcherResponse => {
+        switch responses->Response.find(fetcherResponse.status) {
+        | None =>
+          panic(
+            `No registered responses for the status "${fetcherResponse.status->Js.Int.toString}"`,
+          )
+        | Some(response) =>
+          fetcherResponse
+          ->S.parseAnyOrRaiseWith(response.schema)
+          ->(Obj.magic: unknown => response)
+        }
       })
     }
   {
     baseUrl,
-    api,
+    fetcher,
     call,
     jsonQuery,
   }

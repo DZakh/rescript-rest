@@ -1,6 +1,6 @@
 {
   "name": "rescript-rest",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ReScript RPC-like client, contract, and server implementation for a pure REST API",
   "keywords": [
     "rest",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
-    "rescript": "11.1.1",
+    "rescript": "11.1.2",
     "rescript-schema": "7.0.1"
   },
   "peerDependencies": {

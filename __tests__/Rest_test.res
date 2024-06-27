@@ -2,19 +2,62 @@ open Ava
 open RescriptSchema
 
 asyncTest("Test simple POST request", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
     args
-  ): Rest.ApiFetcher.return => {
+  ): Rest.ApiFetcher.response => {
     t->Assert.deepEqual(
       args,
       {
         path: "http://localhost:3000/game",
-        body: Some(JsonString(`{"user_name":"Dmitry"}`)),
+        body: %raw(`{"user_name":"Dmitry"}`),
+        headers: None,
+        method: "POST",
+      },
+    )
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+  })
+
+  let userSchema = S.object(s =>
+    {
+      "userName": s.field("user_name", S.string),
+    }
+  )
+
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: "POST",
+    variables: s => s.body(userSchema),
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
+
+  t->ExecutionContext.plan(2)
+})
+
+asyncTest("Test request with mixed body and header data", async t => {
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
+    args
+  ): Rest.ApiFetcher.response => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: %raw(`{"user_name":"Dmitry"}`),
         headers: Some(Js.Dict.fromArray([("X-Version", 1->Obj.magic)])),
         method: "POST",
       },
     )
-    {body: JsonString("true"), status: 200}
+    {
+      data: args.body->Obj.magic,
+      status: 200,
+      headers: args.headers->Belt.Option.getWithDefault(Js.Dict.empty()),
+    }
   })
 
   let createGame = Rest.route(() => {
@@ -25,20 +68,29 @@ asyncTest("Test simple POST request", async t => {
         "userName": s.field("user_name", S.string),
         "version": s.header("X-Version", S.int),
       },
+    responses: [
+      s => {
+        s.status(#200)
+        {
+          "userName": s.field("user_name", S.string),
+          "version": s.header("X-Version", S.int),
+        }
+      },
+    ],
   })
 
   t->Assert.deepEqual(
     await client.call(createGame, {"userName": "Dmitry", "version": 1}),
-    {body: JsonString("true"), status: 200},
+    {"userName": "Dmitry", "version": 1},
   )
 
   t->ExecutionContext.plan(2)
 })
 
 asyncTest("Test simple GET request", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
     args
-  ): Rest.ApiFetcher.return => {
+  ): Rest.ApiFetcher.response => {
     t->Assert.deepEqual(
       args,
       {
@@ -48,16 +100,22 @@ asyncTest("Test simple GET request", async t => {
         method: "GET",
       },
     )
-    {body: JsonString("true"), status: 200}
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
   })
 
   let getHeight = Rest.route(() => {
     path: "/height",
     method: "GET",
     variables: _ => (),
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, ()), {body: JsonString("true"), status: 200})
+  t->Assert.deepEqual(await client.call(getHeight, ()), true)
 
   t->ExecutionContext.plan(2)
 })
@@ -94,6 +152,12 @@ asyncTest("Test query params encoding to path", async t => {
           ),
         ),
       },
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
   })
 
   let variables = {
@@ -115,9 +179,9 @@ asyncTest("Test query params encoding to path", async t => {
     },
   }
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
     args
-  ): Rest.ApiFetcher.return => {
+  ): Rest.ApiFetcher.response => {
     t->Assert.deepEqual(
       args,
       {
@@ -127,17 +191,14 @@ asyncTest("Test query params encoding to path", async t => {
         method: "GET",
       },
     )
-    {body: JsonString("true"), status: 200}
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
   })
 
-  t->Assert.deepEqual(
-    await client.call(getHeight, variables),
-    {body: JsonString("true"), status: 200},
-  )
+  t->Assert.deepEqual(await client.call(getHeight, variables), true)
 
   let jsonQueryClient = Rest.client(
     ~baseUrl="http://localhost:3000",
-    ~api=async (args): Rest.ApiFetcher.return => {
+    ~fetcher=async (args): Rest.ApiFetcher.response => {
       t->Assert.deepEqual(
         args,
         {
@@ -147,36 +208,60 @@ asyncTest("Test query params encoding to path", async t => {
           method: "GET",
         },
       )
-      {body: JsonString("true"), status: 200}
+      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
     ~jsonQuery=true,
   )
 
-  t->Assert.deepEqual(
-    await jsonQueryClient.call(getHeight, variables),
-    {body: JsonString("true"), status: 200},
-  )
+  t->Assert.deepEqual(await jsonQueryClient.call(getHeight, variables), true)
 
   t->ExecutionContext.plan(4)
 })
 
 asyncTest("Example test", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+  let posts = []
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
     args
-  ): Rest.ApiFetcher.return => {
-    t->Assert.deepEqual(
-      args,
+  ): Rest.ApiFetcher.response => {
+    if args.method === "POST" {
+      t->Assert.deepEqual(
+        args,
+        {
+          path: "http://localhost:3000/posts",
+          body: %raw(`{"title":"How to use ReScript Rest?","body":"Read the documentation on GitHub"}`),
+          headers: None,
+          method: "POST",
+        },
+      )
+      let post = args.body->Obj.magic
+      let _ = posts->Js.Array2.push(post)
+      {data: post->Obj.magic, status: 201, headers: Js.Dict.empty()}
+    } else {
+      t->Assert.deepEqual(
+        args,
+        {
+          path: "http://localhost:3000/posts?skip=0&take=10",
+          body: None,
+          headers: %raw(`{"x-pagination-page": 1}`),
+          method: "GET",
+        },
+      )
       {
-        path: "http://localhost:3000/posts?skip=0&take=10",
-        body: None,
-        headers: %raw(`{"x-pagination-page": 1}`),
-        method: "GET",
-      },
-    )
-    {body: JsonString("true"), status: 200}
+        data: {"posts": posts, "total": posts->Js.Array2.length}->Obj.magic,
+        status: 200,
+        headers: Js.Dict.empty(),
+      }
+    }
   })
 
-  let _createPost = Rest.route(() => {
+  let postSchema = S.object(s =>
+    {
+      "title": s.field("title", S.string),
+      "body": s.field("body", S.string),
+    }
+  )
+
+  let createPost = Rest.route(() => {
     path: "/posts",
     method: "POST",
     variables: s =>
@@ -184,12 +269,12 @@ asyncTest("Example test", async t => {
         "title": s.field("title", S.string),
         "body": s.field("body", S.string),
       },
-  })
-
-  let _getPost = Rest.route(() => {
-    path: "/posts/:id",
-    method: "GET",
-    variables: s => s.param("id", S.string),
+    responses: [
+      s => {
+        s.status(#201)
+        s.data(postSchema)
+      },
+    ],
   })
 
   let getPosts = Rest.route(() => {
@@ -201,7 +286,30 @@ asyncTest("Example test", async t => {
         "take": s.query("take", S.int),
         "page": s.header("x-pagination-page", S.option(S.int)),
       },
+    responses: [
+      s => {
+        s.status(#200)
+        {
+          "posts": s.field("posts", S.array(postSchema)),
+          "total": s.field("total", S.int),
+        }
+      },
+    ],
   })
+
+  t->Assert.deepEqual(
+    await client.call(
+      createPost,
+      {
+        "title": "How to use ReScript Rest?",
+        "body": "Read the documentation on GitHub",
+      },
+    ),
+    {
+      "title": "How to use ReScript Rest?",
+      "body": "Read the documentation on GitHub",
+    },
+  )
 
   t->Assert.deepEqual(
     await client.call(
@@ -212,16 +320,24 @@ asyncTest("Example test", async t => {
         "page": Some(1),
       },
     ),
-    {body: JsonString("true"), status: 200},
+    {
+      "posts": [
+        {
+          "title": "How to use ReScript Rest?",
+          "body": "Read the documentation on GitHub",
+        },
+      ],
+      "total": 1,
+    },
   )
 
-  t->ExecutionContext.plan(2)
+  t->ExecutionContext.plan(4)
 })
 
 asyncTest("Multiple path params", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~api=async (
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
     args
-  ): Rest.ApiFetcher.return => {
+  ): Rest.ApiFetcher.response => {
     t->Assert.deepEqual(
       args,
       {
@@ -231,7 +347,7 @@ asyncTest("Multiple path params", async t => {
         method: "GET",
       },
     )
-    {body: JsonString("true"), status: 200}
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
   })
 
   let getSubComment = Rest.route(() => {
@@ -243,6 +359,12 @@ asyncTest("Multiple path params", async t => {
         "commentId": s.param("commentId", S.int),
         "commentId2": s.param("commentId2", S.int),
       },
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
   })
 
   t->Assert.deepEqual(
@@ -254,8 +376,145 @@ asyncTest("Multiple path params", async t => {
         "commentId2": 123,
       },
     ),
-    {body: JsonString("true"), status: 200},
+    true,
   )
 
   t->ExecutionContext.plan(2)
+})
+
+asyncTest("Fails to register two default responses", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      t->Assert.fail("Shouldn't be called")
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: "GET",
+    variables: _ => (),
+    responses: [
+      s => {
+        s.data(S.bool)
+      },
+      s => {
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  t->Assert.throws(
+    () => {
+      client.call(getHeight, ())
+    },
+    ~expectations={
+      message: "[rescript-rest] Response for the \"default\" status registered multiple times",
+    },
+  )
+})
+
+asyncTest("Fails when response is not registered", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: "GET",
+    variables: _ => (),
+    responses: [],
+  })
+
+  await t->Assert.throwsAsync(
+    client.call(getHeight, ()),
+    ~expectations={
+      message: "[rescript-rest] No registered responses for the status \"200\"",
+    },
+  )
+})
+
+asyncTest("Uses default response when explicit status is not defined", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: "GET",
+    variables: _ => (),
+    responses: [
+      s => {
+        s.status(#400)
+        s.data(S.literal(false))
+      },
+      s => {
+        s.data(S.literal(true))
+      },
+    ],
+  })
+
+  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+})
+
+asyncTest("Uses 2XX response when explicit status is not defined", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: "GET",
+    variables: _ => (),
+    responses: [
+      s => {
+        s.status(#400)
+        s.data(S.literal(false))
+      },
+      s => {
+        s.status(#"2XX")
+        s.data(S.literal(true))
+      },
+    ],
+  })
+
+  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+})
+
+asyncTest("Fails with an invalid response data", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      {data: false->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: "GET",
+    variables: _ => (),
+    responses: [
+      s => {
+        s.status(#400)
+        s.data(S.literal(false))
+      },
+      s => {
+        s.data(S.literal(true))
+      },
+    ],
+  })
+
+  await t->Assert.throwsAsync(
+    client.call(getHeight, ()),
+    ~expectations={message: `Failed parsing at ["data"]. Reason: Expected true, received false`},
+  )
 })

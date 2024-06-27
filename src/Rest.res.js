@@ -6,67 +6,58 @@ var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
 async function $$default(args) {
   var match = args.body;
+  var body = match !== undefined ? JSON.stringify(args.body) : undefined;
   var match$1 = args.body;
-  var match$2 = args.headers;
-  var tmp;
+  var headers;
   if (match$1 !== undefined) {
-    switch (match$1.TAG) {
-      case "JsonString" :
-          tmp = match$2 !== undefined ? Object.assign({
-                  "content-type": "application/json"
-                }, match$2) : ({
-                "content-type": "application/json"
-              });
-          break;
-      case "Text" :
-      case "Blob" :
-          tmp = match$2 !== undefined ? match$2 : undefined;
-          break;
-      
-    }
+    var contentHeaders = {
+      "content-type": "application/json"
+    };
+    headers = args.headers === undefined ? contentHeaders : Object.assign(contentHeaders, args.headers);
   } else {
-    tmp = match$2 !== undefined ? match$2 : undefined;
+    headers = args.headers;
   }
   var result = await fetch(args.path, {
         method: args.method,
-        body: match !== undefined ? match._0 : undefined,
-        headers: tmp
+        body: body,
+        headers: headers
       });
   var contentType = result.headers.get("content-type");
   if (contentType !== undefined) {
     var contentType$1 = Caml_option.valFromOption(contentType);
     if (contentType$1.includes("application/") && contentType$1.includes("json")) {
       return {
-              body: {
-                TAG: "JsonString",
-                _0: await result.json()
-              },
-              status: result.status
+              data: JSON.parse(await result.json()),
+              status: result.status,
+              headers: result.headers
             };
     }
     if (contentType$1.includes("text/")) {
       return {
-              body: {
-                TAG: "Text",
-                _0: await result.text()
-              },
-              status: result.status
+              data: await result.text(),
+              status: result.status,
+              headers: result.headers
             };
     }
     
   }
   return {
-          body: {
-            TAG: "Blob",
-            _0: await result.blob()
-          },
-          status: result.status
+          data: await result.blob(),
+          status: result.status,
+          headers: result.headers
         };
 }
 
 var ApiFetcher = {
   $$default: $$default
 };
+
+function register(map, status, builder) {
+  if (map[status]) {
+    throw new Error("[rescript-rest] " + ("Response for the \"" + status + "\" status registered multiple times"));
+  }
+  map[status] = builder;
+}
 
 function tokeniseValue(key, value, append) {
   if (Array.isArray(value)) {
@@ -131,8 +122,8 @@ function getCompletePath(baseUrl, routePath, maybeQuery, maybeParams, jsonQuery)
   return path;
 }
 
-function client(baseUrl, apiOpt, jsonQueryOpt) {
-  var api = apiOpt !== undefined ? apiOpt : $$default;
+function client(baseUrl, fetcherOpt, jsonQueryOpt) {
+  var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var initializedRoutes = new WeakMap();
   var getRouteParams = function (route) {
@@ -146,6 +137,9 @@ function client(baseUrl, apiOpt, jsonQueryOpt) {
                       field: (function (fieldName, schema) {
                           return s.nestedField("body", fieldName, schema);
                         }),
+                      body: (function (schema) {
+                          return s.f("body", schema);
+                        }),
                       header: (function (fieldName, schema) {
                           return s.nestedField("headers", fieldName, schema);
                         }),
@@ -157,37 +151,75 @@ function client(baseUrl, apiOpt, jsonQueryOpt) {
                         })
                     });
         });
+    var responses = {};
+    routeDefinition.responses.forEach(function (r) {
+          var builder = {
+            statuses: []
+          };
+          var schema = S$RescriptSchema.object(function (s) {
+                return r({
+                            status: (function (status) {
+                                register(responses, status, builder);
+                                builder.statuses.push(status);
+                              }),
+                            description: (function (d) {
+                                builder.description = d;
+                              }),
+                            data: (function (schema) {
+                                return s.f("data", schema);
+                              }),
+                            field: (function (fieldName, schema) {
+                                return s.nestedField("data", fieldName, schema);
+                              }),
+                            header: (function (fieldName, schema) {
+                                return s.nestedField("headers", fieldName, schema);
+                              })
+                          });
+              });
+          if (builder.statuses.length === 0) {
+            register(responses, "default", builder);
+          }
+          builder.schema = schema;
+        });
     var params = {
       definition: routeDefinition,
-      variablesSchema: variablesSchema
+      variablesSchema: variablesSchema,
+      responses: responses
     };
     initializedRoutes.set(route, params);
     return params;
   };
   var call = function (route, variables) {
     var match = getRouteParams(route);
+    var responses = match.responses;
     var definition = match.definition;
     var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
-    var body = data.body;
-    var body$1 = body !== undefined ? ({
-          TAG: "JsonString",
-          _0: JSON.stringify(Caml_option.valFromOption(body))
-        }) : undefined;
-    return api({
-                body: body$1,
-                headers: data.headers,
-                method: definition.method,
-                path: getCompletePath(baseUrl, definition.path, data.query, data.params, jsonQuery)
+    return fetcher({
+                  body: data.body,
+                  headers: data.headers,
+                  method: definition.method,
+                  path: getCompletePath(baseUrl, definition.path, data.query, data.params, jsonQuery)
+                }).then(function (fetcherResponse) {
+                var responseStatus = fetcherResponse.status;
+                var response = responses[responseStatus] || responses[(responseStatus / 100 | 0) + "XX"] || responses["default"];
+                if (response !== undefined) {
+                  return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
+                }
+                var message = "No registered responses for the status \"" + fetcherResponse.status.toString() + "\"";
+                throw new Error("[rescript-rest] " + message);
               });
   };
   return {
           call: call,
           baseUrl: baseUrl,
-          api: api,
+          fetcher: fetcher,
           jsonQuery: jsonQuery
         };
 }
 
+var $$Response = {};
+
 exports.ApiFetcher = ApiFetcher;
+exports.$$Response = $$Response;
 exports.client = client;
 /* S-RescriptSchema Not a pure module */
