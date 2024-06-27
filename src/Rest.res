@@ -107,20 +107,26 @@ module ApiFetcher = {
       },
     )
     let contentType = result["headers"]["get"]("content-type")
-    switch contentType {
-    | Some(contentType)
-      if contentType->Js.String2.includes("application/") &&
-        contentType->Js.String2.includes("json") => {
+
+    // Note: contentType might be null
+    if (
+      contentType->Obj.magic &&
+      contentType->Js.String2.includes("application/") &&
+      contentType->Js.String2.includes("json")
+    ) {
+      {
         status: result["status"],
-        data: Js.Json.parseExn(await result["json"]())->Obj.magic,
+        data: await result["json"](),
         headers: result["headers"],
       }
-    | Some(contentType) if contentType->Js.String2.includes("text/") => {
+    } else if contentType->Obj.magic && contentType->Js.String2.includes("text/") {
+      {
         status: result["status"],
         data: await result["text"](),
         headers: result["headers"],
       }
-    | _ => {
+    } else {
+      {
         status: result["status"],
         data: await result["blob"](),
         headers: result["headers"],
