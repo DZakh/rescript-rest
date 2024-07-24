@@ -109,13 +109,11 @@ let result = await client.call(
 
 ## Path Parameters
 
-You can define path parameters by simply adding them to the `path` string with a colon `:` followed by the parameter name.
-
-Then you can use it in `variables` with the `s.param` method.
+You can define path parameters by adding them to the `path` strin with a curly brace `{}` including the parameter name. Then each parameter must be defined in `variables` with the `s.param` method.
 
 ```rescript
 let getPost = Rest.route(() => {
-  path: "/api/author/:authorId/posts/:id",
+  path: "/api/author/{authorId}/posts/{id}",
   method: "GET",
   variables: s => {
     "authorId": s.param("authorId", S.string->S.uuid),

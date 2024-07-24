@@ -74,30 +74,30 @@ function tokeniseValue(key, value, append) {
   }
 }
 
-function insertParamsIntoPath(path, maybeParams) {
-  return path.replace(/:([^/]+)/g, (function (param, p, param$1, param$2) {
-                  if (maybeParams === undefined) {
-                    return "";
-                  }
-                  var s = maybeParams[p];
-                  if (s !== undefined) {
-                    return s;
-                  } else {
-                    return "";
-                  }
-                })).replace(/\/\//g, "/");
-}
-
-function getCompletePath(baseUrl, routePath, maybeQuery, maybeParams, jsonQuery) {
-  var path = baseUrl + insertParamsIntoPath(routePath, maybeParams);
+function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery) {
+  var path = baseUrl;
+  for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
+    var pathItem = pathItems[idx];
+    if (typeof pathItem === "string") {
+      path = path + pathItem;
+    } else {
+      var name = pathItem.name;
+      var param = maybeParams && maybeParams[name];
+      if (param !== undefined) {
+        path = path + param;
+      } else {
+        throw new Error("[rescript-rest] " + ("Path parameter \"" + name + "\" is not defined in variables"));
+      }
+    }
+  }
   if (maybeQuery !== undefined) {
     var queryItems = [];
     var append = function (key, value) {
       queryItems.push(key + "=" + encodeURIComponent(value));
     };
     var queryNames = Object.keys(maybeQuery);
-    for(var idx = 0 ,idx_finish = queryNames.length; idx < idx_finish; ++idx){
-      var queryName = queryNames[idx];
+    for(var idx$1 = 0 ,idx_finish$1 = queryNames.length; idx$1 < idx_finish$1; ++idx$1){
+      var queryName = queryNames[idx$1];
       var value = maybeQuery[queryName];
       var key = encodeURIComponent(queryName);
       if (value !== (void 0)) {
@@ -117,6 +117,39 @@ function getCompletePath(baseUrl, routePath, maybeQuery, maybeParams, jsonQuery)
   return path;
 }
 
+function parsePath(_path, pathItems, pathParams) {
+  while(true) {
+    var path = _path;
+    if (path === "") {
+      return ;
+    }
+    var paramStartIdx = path.indexOf("{");
+    if (paramStartIdx !== -1) {
+      var paramEndIdx = path.indexOf("}");
+      if (paramEndIdx !== -1) {
+        if (paramStartIdx > paramEndIdx) {
+          throw new Error("[rescript-rest] Path parameter is not enclosed in curly braces");
+        }
+        var paramName = path.slice(paramStartIdx + 1 | 0, paramEndIdx);
+        if (paramName === "") {
+          throw new Error("[rescript-rest] Path parameter name cannot be empty");
+        }
+        var param = {
+          name: paramName
+        };
+        pathItems.push(path.slice(0, paramStartIdx));
+        pathItems.push(param);
+        pathParams[paramName] = param;
+        _path = path.slice(paramEndIdx + 1 | 0);
+        continue ;
+      }
+      throw new Error("[rescript-rest] Path contains an unclosed parameter");
+    }
+    pathItems.push(path);
+    return ;
+  };
+}
+
 function client(baseUrl, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
@@ -127,6 +160,9 @@ function client(baseUrl, fetcherOpt, jsonQueryOpt) {
       return r;
     }
     var routeDefinition = route();
+    var pathItems = [];
+    var pathParams = {};
+    parsePath(routeDefinition.path, pathItems, pathParams);
     var variablesSchema = S$RescriptSchema.object(function (s) {
           return routeDefinition.variables({
                       field: (function (fieldName, schema) {
@@ -142,6 +178,9 @@ function client(baseUrl, fetcherOpt, jsonQueryOpt) {
                           return s.nestedField("query", fieldName, schema);
                         }),
                       param: (function (fieldName, schema) {
+                          if (!pathParams[fieldName]) {
+                            throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
+                          }
                           return s.nestedField("params", fieldName, schema);
                         })
                     });
@@ -178,6 +217,7 @@ function client(baseUrl, fetcherOpt, jsonQueryOpt) {
         });
     var params = {
       definition: routeDefinition,
+      pathItems: pathItems,
       variablesSchema: variablesSchema,
       responses: responses
     };
@@ -187,13 +227,12 @@ function client(baseUrl, fetcherOpt, jsonQueryOpt) {
   var call = function (route, variables) {
     var match = getRouteParams(route);
     var responses = match.responses;
-    var definition = match.definition;
     var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
     return fetcher({
                   body: data.body,
                   headers: data.headers,
-                  method: definition.method,
-                  path: getCompletePath(baseUrl, definition.path, data.query, data.params, jsonQuery)
+                  method: match.definition.method,
+                  path: getCompletePath(baseUrl, match.pathItems, data.query, data.params, jsonQuery)
                 }).then(function (fetcherResponse) {
                 var responseStatus = fetcherResponse.status;
                 var response = responses[responseStatus] || responses[(responseStatus / 100 | 0) + "XX"] || responses["default"];

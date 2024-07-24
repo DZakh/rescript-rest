@@ -255,6 +255,11 @@ type s = {
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
 }
+
+type pathParam = {name: string}
+@unboxed
+type pathItem = Static(string) | Param(pathParam)
+
 type routeDefinition<'variables, 'response> = {
   method: string,
   path: string,
@@ -266,6 +271,7 @@ type routeDefinition<'variables, 'response> = {
 }
 type routeParams<'variables, 'response> = {
   definition: routeDefinition<'variables, 'response>,
+  pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
   responses: dict<Response.t<'response>>,
 }
@@ -310,31 +316,22 @@ let rec tokeniseValue = (key, value, ~append) => {
   }
 }
 
-// FIXME: Validate that all defined paths are registered
-// FIXME: Prevent `/` in the path param
-/**
- * @param path - The URL e.g. /posts/:id
- * @param maybeParams - The params e.g. `{ id: string }`
- * @returns - The URL with the params e.g. /posts/123
- */
-let insertParamsIntoPath = (~path, ~maybeParams) => {
-  path
-  ->Js.String2.unsafeReplaceBy1(%re("/:([^/]+)/g"), (_, p, _, _) => {
-    switch maybeParams {
-    | Some(params) =>
-      switch params->Js.Dict.unsafeGet(p)->(Obj.magic: unknown => option<string>) {
-      | Some(s) => s
-      | None => ""
-      }
-    | None => ""
-    }
-  })
-  ->Js.String2.replaceByRe(%re("/\/\//g"), "/")
-}
-
 // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L347
-let getCompletePath = (~baseUrl, ~routePath, ~maybeQuery, ~maybeParams, ~jsonQuery) => {
-  let path = ref(baseUrl ++ insertParamsIntoPath(~path=routePath, ~maybeParams))
+let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQuery) => {
+  let path = ref(baseUrl)
+
+  for idx in 0 to pathItems->Js.Array2.length - 1 {
+    let pathItem = pathItems->Js.Array2.unsafe_get(idx)
+    switch pathItem {
+    | Static(static) => path := path.contents ++ static
+    | Param({name}) =>
+      switch (maybeParams->Obj.magic && maybeParams->Js.Dict.unsafeGet(name)->Obj.magic)
+        ->(Obj.magic: bool => option<string>) {
+      | Some(param) => path := path.contents ++ param
+      | None => panic(`Path parameter "${name}" is not defined in variables`)
+      }
+    }
+  }
 
   switch maybeQuery {
   | None => ()
@@ -386,6 +383,35 @@ let getCompletePath = (~baseUrl, ~routePath, ~maybeQuery, ~maybeParams, ~jsonQue
   path.contents
 }
 
+let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
+  if path !== "" {
+    switch path->Js.String2.indexOf("{") {
+    | -1 => pathItems->Js.Array2.push(Static(path))->ignore
+    | paramStartIdx =>
+      switch path->Js.String2.indexOf("}") {
+      | -1 => panic("Path contains an unclosed parameter")
+      | paramEndIdx =>
+        if paramStartIdx > paramEndIdx {
+          panic("Path parameter is not enclosed in curly braces")
+        }
+        let paramName = Js.String2.slice(path, ~from=paramStartIdx + 1, ~to_=paramEndIdx)
+        if paramName === "" {
+          panic("Path parameter name cannot be empty")
+        }
+        let param = {name: paramName}
+
+        pathItems
+        ->Js.Array2.push(Static(Js.String2.slice(path, ~from=0, ~to_=paramStartIdx)))
+        ->ignore
+        pathItems->Js.Array2.push(Param(param))->ignore
+        pathParams->Js.Dict.set(paramName, param)->ignore
+
+        parsePath(Js.String2.sliceToEnd(path, ~from=paramEndIdx + 1), ~pathItems, ~pathParams)
+      }
+    }
+  }
+}
+
 let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
   let initializedRoutes = WeakMap.make()
 
@@ -394,6 +420,10 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
     | Some(r) => r
     | None => {
         let routeDefinition = route()
+
+        let pathItems = []
+        let pathParams = Js.Dict.empty()
+        parsePath(routeDefinition.path, ~pathItems, ~pathParams)
 
         let variablesSchema = S.object(s => {
           routeDefinition.variables({
@@ -410,6 +440,9 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
               s.nestedField("query", fieldName, schema)
             },
             param: (fieldName, schema) => {
+              if !Dict.has(pathParams, fieldName) {
+                panic(`Path parameter "${fieldName}" is not defined in the path`)
+              }
               s.nestedField("params", fieldName, schema)
             },
           })
@@ -447,6 +480,7 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
         let params = {
           definition: routeDefinition,
           variablesSchema,
+          pathItems,
           responses,
         }
 
@@ -462,7 +496,7 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
       let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
       let variables = variables->(Obj.magic: variables => unknown)
 
-      let {definition, variablesSchema, responses} = getRouteParams(route)
+      let {definition, variablesSchema, responses, pathItems} = getRouteParams(route)
 
       let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
@@ -471,7 +505,7 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
         headers: data["headers"],
         path: getCompletePath(
           ~baseUrl,
-          ~routePath=definition.path,
+          ~pathItems,
           ~maybeQuery=data["query"],
           ~maybeParams=data["params"],
           ~jsonQuery,

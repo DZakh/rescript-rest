@@ -351,7 +351,7 @@ asyncTest("Multiple path params", async t => {
   })
 
   let getSubComment = Rest.route(() => {
-    path: "/post/:id/comments/:commentId/:commentId2",
+    path: "/post/{id}/comments/{commentId}/{commentId2}",
     method: "GET",
     variables: s =>
       {
