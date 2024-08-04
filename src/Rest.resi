@@ -123,5 +123,3 @@ type client = {
 }
 
 let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
-
-let routeToOpenAPI: (route<'variables, 'response>, ~jsonQuery: bool=?) => OpenAPI.operation

@@ -17,9 +17,7 @@
   },
   "suffix": ".res.js",
   "bs-dependencies": [
-    "rescript-schema",
-    "rescript-openapi",
-    "rescript-json-schema"
+    "rescript-schema"
   ],
   "bs-dev-dependencies": ["@dzakh/rescript-ava"]
 }
