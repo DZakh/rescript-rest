@@ -27,11 +27,15 @@
     "res:clean": "rescript clean",
     "test": "ava"
   },
+  "dependencies": {
+    "rescript-openapi": "0.3.x",
+    "rescript-json-schema": "6.x"
+  },
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
     "rescript": "11.1.2",
-    "rescript-schema": "8.0.0"
+    "rescript-schema": "8.0.1"
   },
   "peerDependencies": {
     "rescript": "11.x",

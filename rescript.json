@@ -16,6 +16,10 @@
     "in-source": true
   },
   "suffix": ".res.js",
-  "bs-dependencies": ["rescript-schema"],
+  "bs-dependencies": [
+    "rescript-schema",
+    "rescript-openapi",
+    "rescript-json-schema"
+  ],
   "bs-dev-dependencies": ["@dzakh/rescript-ava"]
 }

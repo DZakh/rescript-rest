@@ -40,15 +40,6 @@ module Object = {
   external mixin: ({..} as 'a, {..}) => 'a = "Object.assign"
 }
 
-module WeakMap = {
-  type t<'k, 'v> = Js.WeakMap.t<'k, 'v>
-
-  @new external make: unit => t<'k, 'v> = "WeakMap"
-
-  @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
-  @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
-}
-
 @inline
 let panic = message => Exn.raiseError(Exn.makeError(`[rescript-rest] ${message}`))
 
@@ -248,6 +239,10 @@ module Response = {
   }
 }
 
+type pathParam = {name: string}
+@unboxed
+type pathItem = Static(string) | Param(pathParam)
+
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   body: 'value. S.t<'value> => 'value,
@@ -256,11 +251,7 @@ type s = {
   param: 'value. (string, S.t<'value>) => 'value,
 }
 
-type pathParam = {name: string}
-@unboxed
-type pathItem = Static(string) | Param(pathParam)
-
-type routeDefinition<'variables, 'response> = {
+type definition<'variables, 'response> = {
   method: string,
   path: string,
   variables: s => 'variables,
@@ -269,15 +260,124 @@ type routeDefinition<'variables, 'response> = {
   description?: string,
   deprecated?: bool,
 }
+
 type routeParams<'variables, 'response> = {
-  definition: routeDefinition<'variables, 'response>,
+  definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
   responses: dict<Response.t<'response>>,
 }
 
-type route<'variables, 'response> = unit => routeDefinition<'variables, 'response>
-external route: (unit => routeDefinition<'variables, 'response>) => route<'variables, 'response> =
+type route<'variables, 'response> = unit => definition<'variables, 'response>
+
+let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
+  if path !== "" {
+    switch path->Js.String2.indexOf("{") {
+    | -1 => pathItems->Js.Array2.push(Static(path))->ignore
+    | paramStartIdx =>
+      switch path->Js.String2.indexOf("}") {
+      | -1 => panic("Path contains an unclosed parameter")
+      | paramEndIdx =>
+        if paramStartIdx > paramEndIdx {
+          panic("Path parameter is not enclosed in curly braces")
+        }
+        let paramName = Js.String2.slice(path, ~from=paramStartIdx + 1, ~to_=paramEndIdx)
+        if paramName === "" {
+          panic("Path parameter name cannot be empty")
+        }
+        let param = {name: paramName}
+
+        pathItems
+        ->Js.Array2.push(Static(Js.String2.slice(path, ~from=0, ~to_=paramStartIdx)))
+        ->ignore
+        pathItems->Js.Array2.push(Param(param))->ignore
+        pathParams->Js.Dict.set(paramName, param)->ignore
+
+        parsePath(Js.String2.sliceToEnd(path, ~from=paramEndIdx + 1), ~pathItems, ~pathParams)
+      }
+    }
+  }
+}
+
+let params = route => {
+  switch (route->Obj.magic)["_rest"]->(
+    Obj.magic: unknown => option<routeParams<'variables, 'response>>
+  ) {
+  | Some(params) => params
+  | None => {
+      let routeDefinition = (
+        route->(Obj.magic: route<'variables, 'response> => route<unknown, unknown>)
+      )()
+
+      let pathItems = []
+      let pathParams = Js.Dict.empty()
+      parsePath(routeDefinition.path, ~pathItems, ~pathParams)
+
+      let variablesSchema = S.object(s => {
+        routeDefinition.variables({
+          field: (fieldName, schema) => {
+            s.nestedField("body", fieldName, schema)
+          },
+          body: schema => {
+            s.field("body", schema)
+          },
+          header: (fieldName, schema) => {
+            s.nestedField("headers", fieldName, schema)
+          },
+          query: (fieldName, schema) => {
+            s.nestedField("query", fieldName, schema)
+          },
+          param: (fieldName, schema) => {
+            if !Dict.has(pathParams, fieldName) {
+              panic(`Path parameter "${fieldName}" is not defined in the path`)
+            }
+            s.nestedField("params", fieldName, schema)
+          },
+        })
+      })
+
+      let responses = Js.Dict.empty()
+      routeDefinition.responses->Js.Array2.forEach(r => {
+        let builder: Response.builder<unknown> = {
+          statuses: [],
+        }
+        let schema = S.object(s => {
+          r({
+            status: status => {
+              responses->Response.register(status, builder)
+              let _ = builder.statuses->Js.Array2.push(status)
+            },
+            description: d => builder.description = Some(d),
+            field: (fieldName, schema) => {
+              s.nestedField("data", fieldName, schema)
+            },
+            data: schema => {
+              s.field("data", schema)
+            },
+            header: (fieldName, schema) => {
+              s.nestedField("headers", fieldName, schema)
+            },
+          })
+        })
+        if builder.statuses->Js.Array2.length === 0 {
+          responses->Response.register(#default, builder)
+        }
+        builder.schema = Option.unsafeSome(schema)
+      })
+
+      let params = {
+        definition: routeDefinition,
+        variablesSchema,
+        pathItems,
+        responses,
+      }
+      (route->Obj.magic)["_rest"] = params
+      params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'variables, 'response>)
+    }
+  }
+}
+
+external route: (unit => definition<'variables, 'response>) => route<'variables, 'response> =
   "%identity"
 
 type client = {
@@ -383,120 +483,14 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
   path.contents
 }
 
-let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
-  if path !== "" {
-    switch path->Js.String2.indexOf("{") {
-    | -1 => pathItems->Js.Array2.push(Static(path))->ignore
-    | paramStartIdx =>
-      switch path->Js.String2.indexOf("}") {
-      | -1 => panic("Path contains an unclosed parameter")
-      | paramEndIdx =>
-        if paramStartIdx > paramEndIdx {
-          panic("Path parameter is not enclosed in curly braces")
-        }
-        let paramName = Js.String2.slice(path, ~from=paramStartIdx + 1, ~to_=paramEndIdx)
-        if paramName === "" {
-          panic("Path parameter name cannot be empty")
-        }
-        let param = {name: paramName}
-
-        pathItems
-        ->Js.Array2.push(Static(Js.String2.slice(path, ~from=0, ~to_=paramStartIdx)))
-        ->ignore
-        pathItems->Js.Array2.push(Param(param))->ignore
-        pathParams->Js.Dict.set(paramName, param)->ignore
-
-        parsePath(Js.String2.sliceToEnd(path, ~from=paramEndIdx + 1), ~pathItems, ~pathParams)
-      }
-    }
-  }
-}
-
 let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
-  let initializedRoutes = WeakMap.make()
-
-  let getRouteParams = route => {
-    switch initializedRoutes->WeakMap.get(route) {
-    | Some(r) => r
-    | None => {
-        let routeDefinition = route()
-
-        let pathItems = []
-        let pathParams = Js.Dict.empty()
-        parsePath(routeDefinition.path, ~pathItems, ~pathParams)
-
-        let variablesSchema = S.object(s => {
-          routeDefinition.variables({
-            field: (fieldName, schema) => {
-              s.nestedField("body", fieldName, schema)
-            },
-            body: schema => {
-              s.field("body", schema)
-            },
-            header: (fieldName, schema) => {
-              s.nestedField("headers", fieldName, schema)
-            },
-            query: (fieldName, schema) => {
-              s.nestedField("query", fieldName, schema)
-            },
-            param: (fieldName, schema) => {
-              if !Dict.has(pathParams, fieldName) {
-                panic(`Path parameter "${fieldName}" is not defined in the path`)
-              }
-              s.nestedField("params", fieldName, schema)
-            },
-          })
-        })
-
-        let responses = Js.Dict.empty()
-        routeDefinition.responses->Js.Array2.forEach(r => {
-          let builder: Response.builder<unknown> = {
-            statuses: [],
-          }
-          let schema = S.object(s => {
-            r({
-              status: status => {
-                responses->Response.register(status, builder)
-                let _ = builder.statuses->Js.Array2.push(status)
-              },
-              description: d => builder.description = Some(d),
-              field: (fieldName, schema) => {
-                s.nestedField("data", fieldName, schema)
-              },
-              data: schema => {
-                s.field("data", schema)
-              },
-              header: (fieldName, schema) => {
-                s.nestedField("headers", fieldName, schema)
-              },
-            })
-          })
-          if builder.statuses->Js.Array2.length === 0 {
-            responses->Response.register(#default, builder)
-          }
-          builder.schema = Option.unsafeSome(schema)
-        })
-
-        let params = {
-          definition: routeDefinition,
-          variablesSchema,
-          pathItems,
-          responses,
-        }
-
-        let _ = initializedRoutes->WeakMap.set(route, params)
-        params
-      }
-    }
-  }
-
   let call:
     type variables response. (route<variables, response>, variables) => promise<response> =
     (route, variables) => {
       let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
       let variables = variables->(Obj.magic: variables => unknown)
 
-      let {definition, variablesSchema, responses, pathItems} = getRouteParams(route)
+      let {definition, variablesSchema, responses, pathItems} = route->params
 
       let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
@@ -530,4 +524,117 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
     call,
     jsonQuery,
   }
+}
+
+let routeToOpenAPI = (route: route<'variables, 'response>, ~jsonQuery=false): OpenAPI.operation => {
+  let params = route->params
+  let schemas = (params.variablesSchema->S.classify->Obj.magic)["fields"]
+
+  let parameters = []
+
+  let paramsSchemaItems: dict<S.item> = switch (schemas["params"]: option<S.item>) {
+  | None => Js.Dict.empty()
+  | Some(paramsItem) => (paramsItem.schema->S.classify->Obj.magic)["fields"]
+  }
+  params.pathItems->Js.Array2.forEach(pathItem => {
+    switch pathItem {
+    | Static(_) => ()
+    | Param({name}) =>
+      switch paramsSchemaItems
+      ->Js.Dict.unsafeGet(name)
+      ->Option.unsafeSome {
+      | None => panic(`Path parameter "${name}" is not defined in variables`)
+      | Some(fieldItem) =>
+        parameters
+        ->Js.Array2.push(
+          OpenAPI.Mutable.WithReference.object(
+            (
+              {
+                name,
+                in_: Path,
+                required: true,
+                schema: switch JSONSchema.make(fieldItem.schema) {
+                | Ok(schema) => schema
+                | Error(message) => panic(message)
+                },
+              }: OpenAPI.Mutable.parameter
+            ),
+          ),
+        )
+        ->ignore
+      }
+    }
+  })
+
+  let querySchemaItems: array<S.item> = switch (schemas["query"]: option<S.item>) {
+  | None => []
+  | Some(queryItem) => (queryItem.schema->S.classify->Obj.magic)["items"]
+  }
+  querySchemaItems->Js.Array2.forEach(item => {
+    let required = ref(Some(true))
+    let schema = switch item.schema->S.classify {
+    | Option(s) => {
+        required := None
+        s
+      }
+    | _ => item.schema
+    }
+
+    let jsonSchema = switch JSONSchema.make(schema) {
+    | Ok(schema) => schema
+    | Error(message) => panic(message)
+    }
+
+    let parameter: OpenAPI.Mutable.parameter = {
+      name: item.location,
+      in_: Query,
+    }
+    switch required.contents {
+    | Some(required) => parameter.required = Some(required)
+    | None => ()
+    }
+    switch item.schema->S.description {
+    | Some(description) => parameter.description = Some(description)
+    | None => ()
+    }
+    switch jsonQuery {
+    | true =>
+      parameter.content = Some(
+        Js.Dict.fromArray([
+          (
+            "application/json",
+            OpenAPI.Mutable.WithReference.object(({schema: jsonSchema}: OpenAPI.Mutable.mediaType)),
+          ),
+        ]),
+      )
+    | false =>
+      parameter.schema = Some(jsonSchema)
+      switch schema->S.classify {
+      | Object(_) => parameter.style = Some(#deepObject)
+      | _ => ()
+      }
+    }
+
+    parameters
+    ->Js.Array2.push(OpenAPI.Mutable.WithReference.object(parameter))
+    ->ignore
+  })
+
+  let operation: OpenAPI.Mutable.operation = {
+    operationId: %raw(`route.name`),
+    parameters,
+  }
+  switch params.definition.summary {
+  | Some(summary) => operation.summary = Some(summary)
+  | None => ()
+  }
+  switch params.definition.description {
+  | Some(description) => operation.description = Some(description)
+  | None => ()
+  }
+  switch params.definition.deprecated {
+  | Some(deprecated) => operation.deprecated = Some(deprecated)
+  | None => ()
+  }
+  operation->(Obj.magic: OpenAPI.Mutable.operation => OpenAPI.operation)
 }

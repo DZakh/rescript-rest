@@ -99,7 +99,8 @@ type s = {
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
 }
-type routeDefinition<'variables, 'response> = {
+
+type definition<'variables, 'response> = {
   method: string,
   path: string,
   variables: s => 'variables,
@@ -110,7 +111,8 @@ type routeDefinition<'variables, 'response> = {
 }
 
 type route<'variables, 'response>
-external route: (unit => routeDefinition<'variables, 'response>) => route<'variables, 'response> =
+
+external route: (unit => definition<'variables, 'response>) => route<'variables, 'response> =
   "%identity"
 
 type client = {
@@ -121,3 +123,5 @@ type client = {
 }
 
 let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
+
+let routeToOpenAPI: (route<'variables, 'response>, ~jsonQuery: bool=?) => OpenAPI.operation
