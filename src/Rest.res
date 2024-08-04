@@ -251,8 +251,10 @@ type s = {
   param: 'value. (string, S.t<'value>) => 'value,
 }
 
+type method = |@as("GET") Get | @as("POST") Post | @as("PUT") Put | @as("PATCH") Patch | @as("DELETE") Delete | @as("HEAD") Head | @as("OPTIONS") Options | @as("TRACE") Trace
+
 type definition<'variables, 'response> = {
-  method: string,
+  method: method,
   path: string,
   variables: s => 'variables,
   responses: array<Response.s => 'response>,
@@ -504,7 +506,7 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
           ~maybeParams=data["params"],
           ~jsonQuery,
         ),
-        method: definition.method,
+        method: (definition.method :> string),
       })->Promise.thenResolve(fetcherResponse => {
         switch responses->Response.find(fetcherResponse.status) {
         | None =>

@@ -25,7 +25,7 @@ asyncTest("Test simple POST request", async t => {
 
   let createGame = Rest.route(() => {
     path: "/game",
-    method: "POST",
+    method: Post,
     variables: s => s.body(userSchema),
     responses: [
       s => {
@@ -62,7 +62,7 @@ asyncTest("Test request with mixed body and header data", async t => {
 
   let createGame = Rest.route(() => {
     path: "/game",
-    method: "POST",
+    method: Post,
     variables: s =>
       {
         "userName": s.field("user_name", S.string),
@@ -105,7 +105,7 @@ asyncTest("Test simple GET request", async t => {
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [
       s => {
@@ -123,7 +123,7 @@ asyncTest("Test simple GET request", async t => {
 asyncTest("Test query params encoding to path", async t => {
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: s =>
       {
         "string": s.query("string", S.string),
@@ -263,7 +263,7 @@ asyncTest("Example test", async t => {
 
   let createPost = Rest.route(() => {
     path: "/posts",
-    method: "POST",
+    method: Post,
     variables: s =>
       {
         "title": s.field("title", S.string),
@@ -279,7 +279,7 @@ asyncTest("Example test", async t => {
 
   let getPosts = Rest.route(() => {
     path: "/posts",
-    method: "GET",
+    method: Get,
     variables: s =>
       {
         "skip": s.query("skip", S.int),
@@ -352,7 +352,7 @@ asyncTest("Multiple path params", async t => {
 
   let getSubComment = Rest.route(() => {
     path: "/post/{id}/comments/{commentId}/{commentId2}",
-    method: "GET",
+    method: Get,
     variables: s =>
       {
         "id": s.param("id", S.string),
@@ -392,7 +392,7 @@ asyncTest("Fails to register two default responses", async t => {
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [
       s => {
@@ -424,7 +424,7 @@ asyncTest("Fails when response is not registered", async t => {
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [],
   })
@@ -447,7 +447,7 @@ asyncTest("Uses default response when explicit status is not defined", async t =
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [
       s => {
@@ -473,7 +473,7 @@ asyncTest("Uses 2XX response when explicit status is not defined", async t => {
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [
       s => {
@@ -500,7 +500,7 @@ asyncTest("Fails with an invalid response data", async t => {
 
   let getHeight = Rest.route(() => {
     path: "/height",
-    method: "GET",
+    method: Get,
     variables: _ => (),
     responses: [
       s => {

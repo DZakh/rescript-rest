@@ -42,7 +42,7 @@ Easily define your API contract somewhere shared, for example, `Contract.res`:
 ```rescript
 let createPost = Rest.route(() => {
   path: "/posts",
-  method: "POST",
+  method: Post,
   variables: s => {
     "title": s.field("title", S.string),
     "body": s.field("body", S.string),
@@ -57,7 +57,7 @@ let createPost = Rest.route(() => {
 
 let getPosts = Rest.route(() => {
   path: "/posts",
-  method: "GET",
+  method: Get,
   variables: s => {
     "skip": s.query("skip", S.int),
     "take": s.query("take", S.int),
@@ -114,7 +114,7 @@ You can define path parameters by adding them to the `path` strin with a curly b
 ```rescript
 let getPost = Rest.route(() => {
   path: "/api/author/{authorId}/posts/{id}",
-  method: "GET",
+  method: Get,
   variables: s => {
     "authorId": s.param("authorId", S.string->S.uuid),
     "id": s.param("id", S.int),
@@ -142,7 +142,7 @@ You can add query parameters to the request by using the `s.query` method in the
 ```rescript
 let getPosts = Rest.route(() => {
   path: "/posts",
-  method: "GET",
+  method: Get,
   variables: s => {
     "skip": s.query("skip", S.int),
     "take": s.query("take", S.int),
@@ -170,7 +170,7 @@ You can add headers to the request by using the `s.header` method in the `variab
 ```rescript
 let getPosts = Rest.route(() => {
   path: "/posts",
-  method: "GET",
+  method: Get,
   variables: s => {
     "authorization": s.header("authorization", S.string),
     "pagination": s.header("pagination", S.option(S.int)),
@@ -188,7 +188,7 @@ Responses are described as an array of response definitions. It's possible to as
 ```rescript
 let createPost = Rest.route(() => {
   path: "/posts",
-  method: "POST",
+  method: Post,
   variables: _ => (),
   responses: [
     s => {
@@ -208,7 +208,7 @@ You can use `s.status` multiple times. To define a range of response statuses, y
 ```rescript
 let createPost = Rest.route(() => {
   path: "/posts",
-  method: "POST",
+  method: Post,
   variables: _ => (),
   responses: [
     s => {
@@ -245,7 +245,7 @@ You can define custom headers in a response as follows:
 ```rescript
 let ping = Rest.route(() => {
   path: "/ping",
-  method: "GET",
+  method: Get,
   summary: "Checks if the server is alive",
   variables: _ => (),
   responses: [

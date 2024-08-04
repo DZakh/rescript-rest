@@ -12,7 +12,7 @@ asyncTest("Fails with path parameter not defined in variables", async t => {
 
   let createGame = Rest.route(() => {
     path: "/game/{gameId}",
-    method: "POST",
+    method: Post,
     variables: _ => (),
     responses: [
       s => {
@@ -37,7 +37,7 @@ asyncTest("Fails with path parameter not defined in the path string", async t =>
 
   let createGame = Rest.route(() => {
     path: "/game",
-    method: "POST",
+    method: Post,
     variables: s => s.param("gameId", S.string),
     responses: [
       s => {
@@ -62,7 +62,7 @@ asyncTest("Fails with empty path parameter name", async t => {
 
   let createGame = Rest.route(() => {
     path: "/game/{}",
-    method: "POST",
+    method: Post,
     variables: s => s.param("", S.string),
     responses: [
       s => {
@@ -87,7 +87,7 @@ asyncTest("Fails with path parameter missing closing curly bracket", async t => 
 
   let createGame = Rest.route(() => {
     path: "/game/{gameId",
-    method: "POST",
+    method: Post,
     variables: s => s.param("", S.string),
     responses: [
       s => {
@@ -112,7 +112,7 @@ asyncTest("Fails with path parameter missing opening curly bracket", async t => 
 
   let createGame = Rest.route(() => {
     path: "/game/gameId}",
-    method: "POST",
+    method: Post,
     variables: s => s.param("gameId", S.string),
     responses: [
       s => {
@@ -137,7 +137,7 @@ asyncTest("Fails with path parameter switched open and close curly bracket", asy
 
   let createGame = Rest.route(() => {
     path: "/game/}gameId{",
-    method: "POST",
+    method: Post,
     variables: s => s.param("gameId", S.string),
     responses: [
       s => {
