@@ -221,27 +221,33 @@ function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery)
   return path;
 }
 
+function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
+  var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
+  var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
+  var match = params(route);
+  var responses = match.responses;
+  var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
+  return fetcher({
+                body: data.body,
+                headers: data.headers,
+                method: match.definition.method,
+                path: getCompletePath(baseUrl, match.pathItems, data.query, data.params, jsonQuery)
+              }).then(function (fetcherResponse) {
+              var responseStatus = fetcherResponse.status;
+              var response = responses[responseStatus] || responses[(responseStatus / 100 | 0) + "XX"] || responses["default"];
+              if (response !== undefined) {
+                return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
+              }
+              var message = "No registered responses for the status \"" + fetcherResponse.status.toString() + "\"";
+              throw new Error("[rescript-rest] " + message);
+            });
+}
+
 function client(baseUrl, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var call = function (route, variables) {
-    var match = params(route);
-    var responses = match.responses;
-    var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
-    return fetcher({
-                  body: data.body,
-                  headers: data.headers,
-                  method: match.definition.method,
-                  path: getCompletePath(baseUrl, match.pathItems, data.query, data.params, jsonQuery)
-                }).then(function (fetcherResponse) {
-                var responseStatus = fetcherResponse.status;
-                var response = responses[responseStatus] || responses[(responseStatus / 100 | 0) + "XX"] || responses["default"];
-                if (response !== undefined) {
-                  return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
-                }
-                var message = "No registered responses for the status \"" + fetcherResponse.status.toString() + "\"";
-                throw new Error("[rescript-rest] " + message);
-              });
+    return $$fetch$1(route, baseUrl, variables, fetcher, jsonQuery);
   };
   return {
           call: call,
@@ -256,4 +262,5 @@ var $$Response = {};
 exports.ApiFetcher = ApiFetcher;
 exports.$$Response = $$Response;
 exports.client = client;
+exports.$$fetch = $$fetch$1;
 /* S-RescriptSchema Not a pure module */

@@ -251,7 +251,15 @@ type s = {
   param: 'value. (string, S.t<'value>) => 'value,
 }
 
-type method = |@as("GET") Get | @as("POST") Post | @as("PUT") Put | @as("PATCH") Patch | @as("DELETE") Delete | @as("HEAD") Head | @as("OPTIONS") Options | @as("TRACE") Trace
+type method =
+  | @as("GET") Get
+  | @as("POST") Post
+  | @as("PUT") Put
+  | @as("PATCH") Patch
+  | @as("DELETE") Delete
+  | @as("HEAD") Head
+  | @as("OPTIONS") Options
+  | @as("TRACE") Trace
 
 type definition<'variables, 'response> = {
   method: method,
@@ -485,41 +493,46 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
   path.contents
 }
 
-let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
-  let call:
-    type variables response. (route<variables, response>, variables) => promise<response> =
-    (route, variables) => {
-      let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
-      let variables = variables->(Obj.magic: variables => unknown)
+let fetch = (
+  type variables response,
+  route: route<variables, response>,
+  baseUrl,
+  variables,
+  ~fetcher=ApiFetcher.default,
+  ~jsonQuery=false,
+) => {
+  let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
+  let variables = variables->(Obj.magic: variables => unknown)
 
-      let {definition, variablesSchema, responses, pathItems} = route->params
+  let {definition, variablesSchema, responses, pathItems} = route->params
 
-      let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
+  let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
-      fetcher({
-        body: data["body"],
-        headers: data["headers"],
-        path: getCompletePath(
-          ~baseUrl,
-          ~pathItems,
-          ~maybeQuery=data["query"],
-          ~maybeParams=data["params"],
-          ~jsonQuery,
-        ),
-        method: (definition.method :> string),
-      })->Promise.thenResolve(fetcherResponse => {
-        switch responses->Response.find(fetcherResponse.status) {
-        | None =>
-          panic(
-            `No registered responses for the status "${fetcherResponse.status->Js.Int.toString}"`,
-          )
-        | Some(response) =>
-          fetcherResponse
-          ->S.parseAnyOrRaiseWith(response.schema)
-          ->(Obj.magic: unknown => response)
-        }
-      })
+  fetcher({
+    body: data["body"],
+    headers: data["headers"],
+    path: getCompletePath(
+      ~baseUrl,
+      ~pathItems,
+      ~maybeQuery=data["query"],
+      ~maybeParams=data["params"],
+      ~jsonQuery,
+    ),
+    method: (definition.method :> string),
+  })->Promise.thenResolve(fetcherResponse => {
+    switch responses->Response.find(fetcherResponse.status) {
+    | None =>
+      panic(`No registered responses for the status "${fetcherResponse.status->Js.Int.toString}"`)
+    | Some(response) =>
+      fetcherResponse
+      ->S.parseAnyOrRaiseWith(response.schema)
+      ->(Obj.magic: unknown => response)
     }
+  })
+}
+
+let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
+  let call = (route, variables) => route->fetch(baseUrl, variables, ~fetcher, ~jsonQuery)
   {
     baseUrl,
     fetcher,

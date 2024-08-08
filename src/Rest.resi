@@ -133,3 +133,11 @@ type client = {
 }
 
 let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
+
+let fetch: (
+  route<'variables, 'response>,
+  string,
+  'variables,
+  ~fetcher: ApiFetcher.t=?,
+  ~jsonQuery: bool=?,
+) => promise<'response>
