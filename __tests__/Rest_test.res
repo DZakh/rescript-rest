@@ -1,22 +1,39 @@
 open Ava
 open RescriptSchema
 
-asyncTest("Test simple POST request", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
-    args
-  ): Rest.ApiFetcher.response => {
-    t->Assert.deepEqual(
-      args,
-      {
-        path: "http://localhost:3000/game",
-        body: %raw(`{"user_name":"Dmitry"}`),
-        headers: None,
-        method: "POST",
-      },
-    )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+let inject = async (app: Fastify.t, args: Rest.ApiFetcher.args): Rest.ApiFetcher.response => {
+  let response = await app->Fastify.inject({
+    url: args.path,
+    method: args.method,
+    body: args.body->Obj.magic,
+    headers: args.headers->Obj.magic,
+  })
+  {
+    data: response.json()->Obj.magic,
+    status: response.statusCode,
+    headers: response.headers->Obj.magic,
+  }
+}
+
+asyncTest("Empty app", async t => {
+  let app = Fastify.make()
+
+  let response = await app->Fastify.inject({
+    url: "/",
+    method: "GET",
   })
 
+  t->Assert.deepEqual(
+    response.json(),
+    %raw(`{
+      "error":"Not Found",
+      "message":"Route GET:/ not found",
+      "statusCode":404
+    }`),
+  )
+})
+
+asyncTest("Test simple POST request", async t => {
   let userSchema = S.object(s =>
     {
       "userName": s.field("user_name", S.string),
@@ -35,9 +52,34 @@ asyncTest("Test simple POST request", async t => {
     ],
   })
 
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "userName": "Dmitry",
+      },
+    )
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: %raw(`{"user_name":"Dmitry"}`),
+        headers: None,
+        method: "POST",
+      },
+    )
+
+    app->inject(args)
+  })
+
   t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
 
-  t->ExecutionContext.plan(2)
+  t->ExecutionContext.plan(3)
 })
 
 asyncTest("Test request with mixed body and header data", async t => {
