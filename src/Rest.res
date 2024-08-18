@@ -522,7 +522,18 @@ let fetch = (
   })->Promise.thenResolve(fetcherResponse => {
     switch responses->Response.find(fetcherResponse.status) {
     | None =>
-      panic(`No registered responses for the status "${fetcherResponse.status->Js.Int.toString}"`)
+      let error = ref(
+        `Server returned unexpected response "${fetcherResponse.status->Js.Int.toString}"`,
+      )
+      if (
+        fetcherResponse.data->Obj.magic &&
+          Js.typeof((fetcherResponse.data->Obj.magic)["message"]) === "string"
+      ) {
+        error :=
+          error.contents ++ ". Message: " ++ (fetcherResponse.data->Obj.magic)["message"]->Obj.magic
+      }
+
+      panic(error.contents)
     | Some(response) =>
       fetcherResponse
       ->S.parseAnyOrRaiseWith(response.schema)

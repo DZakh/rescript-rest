@@ -79,7 +79,18 @@ asyncTest("Test simple POST request", async t => {
 
   t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
 
-  t->ExecutionContext.plan(3)
+  // Returns validation error
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    app->inject(args)
+  })
+  await t->Assert.throwsAsync(
+    client.call(createGame, %raw(`{"userName": 123}`)),
+    ~expectations={
+      message: `[rescript-rest] Server returned unexpected response "500". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected String, received 123`,
+    },
+  )
+
+  t->ExecutionContext.plan(4)
 })
 
 asyncTest("Test request with mixed body and header data", async t => {
@@ -474,7 +485,7 @@ asyncTest("Fails when response is not registered", async t => {
   await t->Assert.throwsAsync(
     client.call(getHeight, ()),
     ~expectations={
-      message: "[rescript-rest] No registered responses for the status \"200\"",
+      message: `[rescript-rest] Server returned unexpected response "200"`,
     },
   )
 })

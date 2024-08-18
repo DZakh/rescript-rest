@@ -238,8 +238,11 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
               if (response !== undefined) {
                 return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
               }
-              var message = "No registered responses for the status \"" + fetcherResponse.status.toString() + "\"";
-              throw new Error("[rescript-rest] " + message);
+              var error = "Server returned unexpected response \"" + fetcherResponse.status.toString() + "\"";
+              if (fetcherResponse.data && typeof fetcherResponse.data.message === "string") {
+                error = error + ". Message: " + fetcherResponse.data.message;
+              }
+              throw new Error("[rescript-rest] " + error);
             });
 }
 
