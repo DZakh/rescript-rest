@@ -30,12 +30,19 @@
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
-    "rescript": "11.1.2",
-    "rescript-schema": "8.0.1"
+    "fastify": "4.28.1",
+    "rescript": "11.1.3",
+    "rescript-schema": "8.0.3"
   },
   "peerDependencies": {
+    "fastify": "4.x",
     "rescript": "11.x",
     "rescript-schema": "7.x || 8.x"
+  },
+  "peerDependenciesMeta": {
+    "fastify": {
+      "optional": true
+    }
   },
   "ava": {
     "files": [
