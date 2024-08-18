@@ -261,6 +261,7 @@ var $$Response = {};
 
 exports.ApiFetcher = ApiFetcher;
 exports.$$Response = $$Response;
+exports.params = params;
 exports.client = client;
 exports.$$fetch = $$fetch$1;
 /* S-RescriptSchema Not a pure module */

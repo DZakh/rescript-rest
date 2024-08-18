@@ -83,6 +83,13 @@ module Response: {
     | #511
   ]
 
+  type t<'response> = {
+    // When it's empty, treat response as a default
+    statuses: array<status>,
+    description: option<string>,
+    schema: S.t<'response>,
+  }
+
   type s = {
     status: status => unit,
     description: string => unit,
@@ -121,6 +128,19 @@ type definition<'variables, 'response> = {
 }
 
 type route<'variables, 'response>
+
+type pathParam = {name: string}
+@unboxed
+type pathItem = Static(string) | Param(pathParam)
+
+type routeParams<'variables, 'response> = {
+  definition: definition<'variables, 'response>,
+  pathItems: array<pathItem>,
+  variablesSchema: S.t<'variables>,
+  responses: dict<Response.t<'response>>,
+}
+
+let params: route<'variables, 'response> => routeParams<'variables, 'response>
 
 external route: (unit => definition<'variables, 'response>) => route<'variables, 'response> =
   "%identity"
