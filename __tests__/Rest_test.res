@@ -143,7 +143,7 @@ asyncTest("Test request with mixed body and header data", async t => {
     {"userName": "Dmitry", "version": 1},
   )
 
-  t->ExecutionContext.plan(2)
+  t->ExecutionContext.plan(3)
 })
 
 asyncTest("Test simple GET request", async t => {

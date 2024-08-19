@@ -312,6 +312,43 @@ let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
   }
 }
 
+let coerceSchema = schema => {
+  schema->S.preprocess(s => {
+    let tagged = switch s.schema->S.classify {
+    | Option(optionalSchema) => optionalSchema->S.classify
+    | tagged => tagged
+    }
+    switch tagged {
+    | Literal(Boolean(_))
+    | Bool => {
+        parser: unknown =>
+          switch unknown->Obj.magic {
+          | "true" => true
+          | "false" => false
+          | _ => unknown->Obj.magic
+          }->Obj.magic,
+      }
+    | Literal(Number(_))
+    | Int
+    | Float => {
+        parser: unknown => {
+          let float = %raw(`+unknown`)
+          if Js.Float.isNaN(float) {
+            unknown
+          } else {
+            float->Obj.magic
+          }
+        },
+      }
+    | String
+    | Literal(String(_))
+    | Union(_)
+    | Never => {}
+    | _ => {}
+    }
+  })
+}
+
 let params = route => {
   switch (route->Obj.magic)["_rest"]->(
     Obj.magic: unknown => option<routeParams<'variables, 'response>>
@@ -335,7 +372,7 @@ let params = route => {
             s.field("body", schema)
           },
           header: (fieldName, schema) => {
-            s.nestedField("headers", fieldName->Js.String2.toLowerCase, schema)
+            s.nestedField("headers", fieldName->Js.String2.toLowerCase, coerceSchema(schema))
           },
           query: (fieldName, schema) => {
             s.nestedField("query", fieldName, schema)
@@ -370,7 +407,7 @@ let params = route => {
               s.field("data", schema)
             },
             header: (fieldName, schema) => {
-              s.nestedField("headers", fieldName->Js.String2.toLowerCase, schema)
+              s.nestedField("headers", fieldName->Js.String2.toLowerCase, coerceSchema(schema))
             },
           })
         })

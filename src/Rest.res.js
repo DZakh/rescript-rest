@@ -87,6 +87,72 @@ function parsePath(_path, pathItems, pathParams) {
   };
 }
 
+function coerceSchema(schema) {
+  return S$RescriptSchema.preprocess(schema, (function (s) {
+                var optionalSchema = S$RescriptSchema.classify(s.schema);
+                var tagged;
+                tagged = typeof optionalSchema !== "object" || optionalSchema.TAG !== "Option" ? optionalSchema : S$RescriptSchema.classify(optionalSchema._0);
+                var exit = 0;
+                if (typeof tagged !== "object") {
+                  switch (tagged) {
+                    case "Int" :
+                    case "Float" :
+                        exit = 2;
+                        break;
+                    case "Bool" :
+                        exit = 1;
+                        break;
+                    default:
+                      return {};
+                  }
+                } else {
+                  switch (tagged.TAG) {
+                    case "Literal" :
+                        switch (tagged._0.kind) {
+                          case "Number" :
+                              exit = 2;
+                              break;
+                          case "Boolean" :
+                              exit = 1;
+                              break;
+                          default:
+                            return {};
+                        }
+                        break;
+                    default:
+                      return {};
+                  }
+                }
+                switch (exit) {
+                  case 1 :
+                      return {
+                              p: (function (unknown) {
+                                  switch (unknown) {
+                                    case "false" :
+                                        return false;
+                                    case "true" :
+                                        return true;
+                                    default:
+                                      return unknown;
+                                  }
+                                })
+                            };
+                  case 2 :
+                      return {
+                              p: (function (unknown) {
+                                  var $$float = (+unknown);
+                                  if (Number.isNaN($$float)) {
+                                    return unknown;
+                                  } else {
+                                    return $$float;
+                                  }
+                                })
+                            };
+                  
+                }
+              }));
+}
+
 function params(route) {
   var params$1 = route._rest;
   if (params$1 !== undefined) {
@@ -105,7 +171,7 @@ function params(route) {
                         return s.f("body", schema);
                       }),
                     header: (function (fieldName, schema) {
-                        return s.nestedField("headers", fieldName.toLowerCase(), schema);
+                        return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
                       }),
                     query: (function (fieldName, schema) {
                         return s.nestedField("query", fieldName, schema);
@@ -140,7 +206,7 @@ function params(route) {
                               return s.nestedField("data", fieldName, schema);
                             }),
                           header: (function (fieldName, schema) {
-                              return s.nestedField("headers", fieldName.toLowerCase(), schema);
+                              return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
                             })
                         });
             });
