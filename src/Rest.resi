@@ -19,12 +19,7 @@ module ApiFetcher: {
 }
 
 module Response: {
-  type status = [
-    | #"1XX"
-    | #"2XX"
-    | #"3XX"
-    | #"4XX"
-    | #"5XX"
+  type numiricStatus = [
     | #100
     | #101
     | #102
@@ -81,6 +76,14 @@ module Response: {
     | #505
     | #507
     | #511
+  ]
+  type status = [
+    | #"1XX"
+    | #"2XX"
+    | #"3XX"
+    | #"4XX"
+    | #"5XX"
+    | numiricStatus
   ]
 
   type t<'response> = {

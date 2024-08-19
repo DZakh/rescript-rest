@@ -105,7 +105,7 @@ function params(route) {
                         return s.f("body", schema);
                       }),
                     header: (function (fieldName, schema) {
-                        return s.nestedField("headers", fieldName, schema);
+                        return s.nestedField("headers", fieldName.toLowerCase(), schema);
                       }),
                     query: (function (fieldName, schema) {
                         return s.nestedField("query", fieldName, schema);
@@ -140,7 +140,7 @@ function params(route) {
                               return s.nestedField("data", fieldName, schema);
                             }),
                           header: (function (fieldName, schema) {
-                              return s.nestedField("headers", fieldName, schema);
+                              return s.nestedField("headers", fieldName.toLowerCase(), schema);
                             })
                         });
             });

@@ -127,12 +127,7 @@ module ApiFetcher = {
 }
 
 module Response = {
-  type status = [
-    | #"1XX"
-    | #"2XX"
-    | #"3XX"
-    | #"4XX"
-    | #"5XX"
+  type numiricStatus = [
     | #100
     | #101
     | #102
@@ -189,6 +184,14 @@ module Response = {
     | #505
     | #507
     | #511
+  ]
+  type status = [
+    | #"1XX"
+    | #"2XX"
+    | #"3XX"
+    | #"4XX"
+    | #"5XX"
+    | numiricStatus
   ]
 
   type s = {
@@ -332,7 +335,7 @@ let params = route => {
             s.field("body", schema)
           },
           header: (fieldName, schema) => {
-            s.nestedField("headers", fieldName, schema)
+            s.nestedField("headers", fieldName->Js.String2.toLowerCase, schema)
           },
           query: (fieldName, schema) => {
             s.nestedField("query", fieldName, schema)
@@ -367,7 +370,7 @@ let params = route => {
               s.field("data", schema)
             },
             header: (fieldName, schema) => {
-              s.nestedField("headers", fieldName, schema)
+              s.nestedField("headers", fieldName->Js.String2.toLowerCase, schema)
             },
           })
         })

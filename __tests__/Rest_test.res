@@ -94,25 +94,6 @@ asyncTest("Test simple POST request", async t => {
 })
 
 asyncTest("Test request with mixed body and header data", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
-    args
-  ): Rest.ApiFetcher.response => {
-    t->Assert.deepEqual(
-      args,
-      {
-        path: "http://localhost:3000/game",
-        body: %raw(`{"user_name":"Dmitry"}`),
-        headers: Some(Js.Dict.fromArray([("X-Version", 1->Obj.magic)])),
-        method: "POST",
-      },
-    )
-    {
-      data: args.body->Obj.magic,
-      status: 200,
-      headers: args.headers->Belt.Option.getWithDefault(Js.Dict.empty()),
-    }
-  })
-
   let createGame = Rest.route(() => {
     path: "/game",
     method: Post,
@@ -130,6 +111,31 @@ asyncTest("Test request with mixed body and header data", async t => {
         }
       },
     ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "userName": "Dmitry",
+        "version": 1,
+      },
+    )
+    variables
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: %raw(`{"user_name":"Dmitry"}`),
+        headers: Some(Js.Dict.fromArray([("x-version", 1->Obj.magic)])),
+        method: "POST",
+      },
+    )
+    app->inject(args)
   })
 
   t->Assert.deepEqual(

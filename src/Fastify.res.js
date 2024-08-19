@@ -2,19 +2,40 @@
 'use strict';
 
 var Rest = require("./Rest.res.js");
+var Js_exn = require("rescript/lib/js/js_exn.js");
+var Js_dict = require("rescript/lib/js/js_dict.js");
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
 var $$Promise = {};
 
 function route(app, restRoute, handler) {
   var params = Rest.params(restRoute);
+  var match = Js_dict.values(params.responses);
+  var responseParams = match.length !== 1 ? Js_exn.raiseError("[rescript-rest] Rest route currently supports only one response definition") : match[0];
+  var numiricStatus = responseParams.statuses[0];
+  var status = numiricStatus === "1XX" ? 100 : (
+      numiricStatus === "2XX" ? 200 : (
+          numiricStatus === "3XX" ? 300 : (
+              numiricStatus === "4XX" ? 400 : (
+                  numiricStatus === "5XX" ? 500 : numiricStatus
+                )
+            )
+        )
+    );
   app.route({
         method: params.definition.method,
         url: params.definition.path,
         handler: (function (request, reply) {
+            console.log(request.headers);
             var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, params.variablesSchema);
-            handler(variables).then(function (response) {
-                  reply.send(response);
+            handler(variables).then(function (handlerReturn) {
+                  var response = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseParams.schema);
+                  var headers = response.headers;
+                  if (headers) {
+                    reply.headers(headers);
+                  }
+                  reply.status(status);
+                  reply.send(response.data);
                 });
           })
       });

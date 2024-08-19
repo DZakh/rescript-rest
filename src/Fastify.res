@@ -116,7 +116,11 @@ type request = {
   body: unknown,
 }
 
-type reply = {send: 'a. 'a => unit}
+type reply = {
+  send: 'a. 'a => unit,
+  headers: 'a. 'a => unit,
+  status: int => unit,
+}
 
 type routeOptions = {
   method: string,
@@ -142,13 +146,36 @@ external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
   let params = restRoute->Rest.params
+  let responseParams = switch params.responses->Js.Dict.values {
+  | [response] => response
+  | _ =>
+    Js.Exn.raiseError("[rescript-rest] Rest route currently supports only one response definition")
+  }
+  let status = switch responseParams.statuses->Js.Array2.unsafe_get(0) {
+  | #"1XX" => 100
+  | #"2XX" => 200
+  | #"3XX" => 300
+  | #"4XX" => 400
+  | #"5XX" => 500
+  | #...Rest.Response.numiricStatus as numiricStatus =>
+    (numiricStatus: Rest.Response.numiricStatus :> int)
+  }
   app->route({
     method: (params.definition.method :> string),
     url: params.definition.path,
     handler: (request, reply) => {
+      Js.log(request.headers)
       let variables = request->S.parseAnyOrRaiseWith(params.variablesSchema)
-      let _ = handler(variables)->Promise.thenResolve(response => {
-        reply.send(response)
+      let _ = handler(variables)->Promise.thenResolve(handlerReturn => {
+        let response: {..} = Obj.magic(
+          (handlerReturn->S.serializeToUnknownOrRaiseWith(responseParams.schema): unknown),
+        )
+        let headers = response["headers"]
+        if headers->Obj.magic {
+          reply.headers(headers)
+        }
+        reply.status(status)
+        reply.send(response["data"])
       })
     },
   })
