@@ -381,7 +381,7 @@ let params = route => {
             if !Dict.has(pathParams, fieldName) {
               panic(`Path parameter "${fieldName}" is not defined in the path`)
             }
-            s.nestedField("params", fieldName, schema)
+            s.nestedField("params", fieldName, coerceSchema(schema))
           },
         })
       })

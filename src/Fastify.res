@@ -145,27 +145,40 @@ external listen: (
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
-  let params = restRoute->Rest.params
-  let responseParams = switch params.responses->Js.Dict.values {
+  let {definition, variablesSchema, responses, pathItems} = restRoute->Rest.params
+  let responseParams = switch responses->Js.Dict.values {
   | [response] => response
   | _ =>
     Js.Exn.raiseError("[rescript-rest] Rest route currently supports only one response definition")
   }
-  let status = switch responseParams.statuses->Js.Array2.unsafe_get(0) {
-  | #"1XX" => 100
-  | #"2XX" => 200
-  | #"3XX" => 300
-  | #"4XX" => 400
-  | #"5XX" => 500
-  | #...Rest.Response.numiricStatus as numiricStatus =>
-    (numiricStatus: Rest.Response.numiricStatus :> int)
+  let status = switch responseParams.statuses {
+  | [] => 200
+  | _ =>
+    switch responseParams.statuses->Js.Array2.unsafe_get(0) {
+    | #"1XX" => 100
+    | #"2XX" => 200
+    | #"3XX" => 300
+    | #"4XX" => 400
+    | #"5XX" => 500
+    | #...Rest.Response.numiricStatus as numiricStatus =>
+      (numiricStatus: Rest.Response.numiricStatus :> int)
+    }
   }
+
+  let url = ref("")
+  for idx in 0 to pathItems->Js.Array2.length - 1 {
+    let pathItem = pathItems->Js.Array2.unsafe_get(idx)
+    switch pathItem {
+    | Static(static) => url := url.contents ++ static // FIXME: Escape : with ::
+    | Param({name}) => url := url.contents ++ ":" ++ name
+    }
+  }
+
   app->route({
-    method: (params.definition.method :> string),
-    url: params.definition.path,
+    method: (definition.method :> string),
+    url: url.contents,
     handler: (request, reply) => {
-      Js.log(request.headers)
-      let variables = request->S.parseAnyOrRaiseWith(params.variablesSchema)
+      let variables = request->S.parseAnyOrRaiseWith(variablesSchema)
       let _ = handler(variables)->Promise.thenResolve(handlerReturn => {
         let response: {..} = Obj.magic(
           (handlerReturn->S.serializeToUnknownOrRaiseWith(responseParams.schema): unknown),

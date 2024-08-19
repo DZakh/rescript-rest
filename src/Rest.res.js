@@ -180,7 +180,7 @@ function params(route) {
                         if (!pathParams[fieldName]) {
                           throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
                         }
-                        return s.nestedField("params", fieldName, schema);
+                        return s.nestedField("params", fieldName, coerceSchema(schema));
                       })
                   });
       });

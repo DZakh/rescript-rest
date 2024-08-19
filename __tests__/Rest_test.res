@@ -147,21 +147,6 @@ asyncTest("Test request with mixed body and header data", async t => {
 })
 
 asyncTest("Test simple GET request", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
-    args
-  ): Rest.ApiFetcher.response => {
-    t->Assert.deepEqual(
-      args,
-      {
-        path: "http://localhost:3000/height",
-        body: None,
-        headers: None,
-        method: "GET",
-      },
-    )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
-  })
-
   let getHeight = Rest.route(() => {
     path: "/height",
     method: Get,
@@ -174,9 +159,28 @@ asyncTest("Test simple GET request", async t => {
     ],
   })
 
+  let app = Fastify.make()
+  app->Fastify.route(getHeight, async variables => {
+    t->Assert.deepEqual(variables, ())
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/height",
+        body: None,
+        headers: None,
+        method: "GET",
+      },
+    )
+    app->inject(args)
+  })
+
   t->Assert.deepEqual(await client.call(getHeight, ()), true)
 
-  t->ExecutionContext.plan(2)
+  t->ExecutionContext.plan(3)
 })
 
 asyncTest("Test query params encoding to path", async t => {
@@ -394,21 +398,6 @@ asyncTest("Example test", async t => {
 })
 
 asyncTest("Multiple path params", async t => {
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
-    args
-  ): Rest.ApiFetcher.response => {
-    t->Assert.deepEqual(
-      args,
-      {
-        path: "http://localhost:3000/post/abc/comments/1/123",
-        body: None,
-        headers: None,
-        method: "GET",
-      },
-    )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
-  })
-
   let getSubComment = Rest.route(() => {
     path: "/post/{id}/comments/{commentId}/{commentId2}",
     method: Get,
@@ -426,6 +415,32 @@ asyncTest("Multiple path params", async t => {
     ],
   })
 
+  let app = Fastify.make()
+  app->Fastify.route(getSubComment, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "id": "abc",
+        "commentId": 1,
+        "commentId2": 123,
+      },
+    )
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/post/abc/comments/1/123",
+        body: None,
+        headers: None,
+        method: "GET",
+      },
+    )
+    app->inject(args)
+  })
+
   t->Assert.deepEqual(
     await client.call(
       getSubComment,
@@ -438,7 +453,7 @@ asyncTest("Multiple path params", async t => {
     true,
   )
 
-  t->ExecutionContext.plan(2)
+  t->ExecutionContext.plan(3)
 })
 
 asyncTest("Fails to register two default responses", async t => {

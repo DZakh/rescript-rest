@@ -9,25 +9,37 @@ var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 var $$Promise = {};
 
 function route(app, restRoute, handler) {
-  var params = Rest.params(restRoute);
-  var match = Js_dict.values(params.responses);
-  var responseParams = match.length !== 1 ? Js_exn.raiseError("[rescript-rest] Rest route currently supports only one response definition") : match[0];
-  var numiricStatus = responseParams.statuses[0];
-  var status = numiricStatus === "1XX" ? 100 : (
-      numiricStatus === "2XX" ? 200 : (
-          numiricStatus === "3XX" ? 300 : (
-              numiricStatus === "4XX" ? 400 : (
-                  numiricStatus === "5XX" ? 500 : numiricStatus
-                )
-            )
-        )
-    );
+  var match = Rest.params(restRoute);
+  var variablesSchema = match.variablesSchema;
+  var pathItems = match.pathItems;
+  var match$1 = Js_dict.values(match.responses);
+  var responseParams = match$1.length !== 1 ? Js_exn.raiseError("[rescript-rest] Rest route currently supports only one response definition") : match$1[0];
+  var match$2 = responseParams.statuses;
+  var status;
+  if (match$2.length !== 0) {
+    var numiricStatus = responseParams.statuses[0];
+    status = numiricStatus === "1XX" ? 100 : (
+        numiricStatus === "2XX" ? 200 : (
+            numiricStatus === "3XX" ? 300 : (
+                numiricStatus === "4XX" ? 400 : (
+                    numiricStatus === "5XX" ? 500 : numiricStatus
+                  )
+              )
+          )
+      );
+  } else {
+    status = 200;
+  }
+  var url = "";
+  for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
+    var pathItem = pathItems[idx];
+    url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
+  }
   app.route({
-        method: params.definition.method,
-        url: params.definition.path,
+        method: match.definition.method,
+        url: url,
         handler: (function (request, reply) {
-            console.log(request.headers);
-            var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, params.variablesSchema);
+            var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
             handler(variables).then(function (handlerReturn) {
                   var response = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseParams.schema);
                   var headers = response.headers;
