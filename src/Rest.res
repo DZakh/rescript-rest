@@ -375,7 +375,7 @@ let params = route => {
             s.nestedField("headers", fieldName->Js.String2.toLowerCase, coerceSchema(schema))
           },
           query: (fieldName, schema) => {
-            s.nestedField("query", fieldName, schema)
+            s.nestedField("query", fieldName, coerceSchema(schema))
           },
           param: (fieldName, schema) => {
             if !Dict.has(pathParams, fieldName) {
@@ -385,8 +385,17 @@ let params = route => {
           },
         })
       })
-      // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
-      (variablesSchema->Obj.magic)["f"] = ()
+
+      {
+        // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
+        (variablesSchema->Obj.magic)["f"] = ()
+        let items: array<S.item> = (variablesSchema->Obj.magic)["r"]["items"]
+        items->Js.Array2.forEach(item => {
+          let schema = item.schema
+          // Remove ${inputVar}.constructor!==Object check
+          (schema->Obj.magic)["f"] = (_b, ~inputVar) => `!${inputVar}`
+        })
+      }
 
       let responses = Js.Dict.empty()
       routeDefinition.responses->Js.Array2.forEach(r => {

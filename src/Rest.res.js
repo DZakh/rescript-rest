@@ -174,7 +174,7 @@ function params(route) {
                         return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
                       }),
                     query: (function (fieldName, schema) {
-                        return s.nestedField("query", fieldName, schema);
+                        return s.nestedField("query", fieldName, coerceSchema(schema));
                       }),
                     param: (function (fieldName, schema) {
                         if (!pathParams[fieldName]) {
@@ -185,6 +185,13 @@ function params(route) {
                   });
       });
   variablesSchema.f = undefined;
+  var items = variablesSchema.r.items;
+  items.forEach(function (item) {
+        var schema = item.t;
+        schema.f = (function (_b, inputVar) {
+            return "!" + inputVar;
+          });
+      });
   var responses = {};
   routeDefinition.responses.forEach(function (r) {
         var builder = {
