@@ -135,11 +135,7 @@ external make: unit => t = "default"
 external inject: (t, injectOptions) => promise<injectResponse> = "inject"
 
 @send
-external listen: (
-  t,
-  listenOptions,
-  ~callback: (~err: unknown, ~address: string) => unit=?,
-) => unit = "listen"
+external listen: (t, listenOptions) => promise<string> = "listen"
 
 @send
 external route: (t, routeOptions) => unit = "route"

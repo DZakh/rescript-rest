@@ -30,10 +30,13 @@ app->Fastify.route(createGame, async _variables => {
   true
 })
 
-app->Fastify.listen({port: 3000}, ~callback=(~err as _, ~address as _) => {
-  let client = Rest.client(~baseUrl="http://localhost:3000")
+let _ =
+  app
+  ->Fastify.listen({port: 3000})
+  ->Promise.thenResolve(address => {
+    let client = Rest.client(~baseUrl=address)
 
-  let _ = client.call(createGame, %raw(`{"userName": 123}`))->Promise.thenResolve(response => {
-    Js.log(response)
+    let _ = client.call(createGame, %raw(`{"userName": 123}`))->Promise.thenResolve(response => {
+      Js.log(response)
+    })
   })
-})

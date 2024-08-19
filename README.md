@@ -40,21 +40,6 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 Easily define your API contract somewhere shared, for example, `Contract.res`:
 
 ```rescript
-let createPost = Rest.route(() => {
-  path: "/posts",
-  method: Post,
-  variables: s => {
-    "title": s.field("title", S.string),
-    "body": s.field("body", S.string),
-  },
-  responses: [
-    s => {
-      s.status(#201)
-      s.data(postSchema)
-    },
-  ],
-})
-
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: Get,
@@ -66,29 +51,16 @@ let getPosts = Rest.route(() => {
   responses: [
     s => {
       s.status(#200)
-      {
-        "posts": s.field("posts", S.array(postSchema)),
-        "total": s.field("total", S.int),
-      }
+      s.field("posts", S.array(postSchema))
     },
   ],
 })
 ```
 
-Consume the api on the client with a RPC-like interface:
+Consume the API on the client with a RPC-like interface:
 
 ```rescript
 let client = Rest.client(~baseUrl="http://localhost:3000")
-
-//  ↓ Infers the post type from postSchema
-let post = await client.call(
-  Contract.createPost,
-  {
-    "title": "How to use ReScript Rest?",
-    "body": "Read the documentation on GitHub",
-  }
-  // ^-- Fully typed!
-) // ℹ️ It'll do a POST request to http://localhost:3000/posts with application/json body
 
 let result = await client.call(
   Contract.getPosts,
@@ -101,7 +73,18 @@ let result = await client.call(
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": 1}` headers
 ```
 
-> 🧠 Currently `rescript-rest` supports only `client`, but the idea is to reuse the file both for `client` and `server`.
+Fulfil the contract on your sever, with a type-safe Fasitfy integration:
+
+```rescript
+let app = Fastify.make()
+
+app->Fastify.route(Contract.getPosts, async variables => {
+  prisma.post.findUnique({ where: { id: variables["id"] } })
+})
+// ^-- Both variables and return value are fully typed!
+
+let _ = app->Fastify.listen({port: 3000})
+```
 
 **Examples from public repositories:**
 
@@ -262,6 +245,44 @@ let ping = Rest.route(() => {
 })
 ```
 
+## Server Implementation
+
+### [Fastify](https://fastify.dev/)
+
+Fastify is a fast and low overhead web framework, for Node.js. You can use it to implement your API server with `rescript-rest`.
+
+To start, install `rescript-rest` and `fastify`:
+
+```sh
+npm install rescript-rest fastify
+```
+
+Then define your API contract:
+
+```rescript
+let getPosts = Rest.route(() => {...})
+```
+
+And implement it on the server side:
+
+```rescript
+let app = Fastify.make()
+
+app->Fastify.route(Contract.getPosts, async variables => {
+  // Implementation where return type is promise<'response>
+})
+
+let _ = app->Fastify.listen({port: 3000})
+```
+
+> 🧠 `rescript-rest` ships with minimal bindings for Fastify to improve the integration experience. If you need more advanced configuration, please open an issue or PR.
+
+#### Known Limitations
+
+- Currently supports routes only with a single response definition
+- Doesn't support array/object-like query params
+- Has issues with paths with `:`
+
 ## Planned Features
 
 - [x] Support query params
@@ -272,5 +293,6 @@ let ping = Rest.route(() => {
 - [ ] Support non-json body
 - [ ] Generate OpenAPI from Contract
 - [ ] Generate Contract from OpenAPI
-- [ ] Integrate with Fastify on server-side
+- [x] Server implementation with Fastify
+- [ ] NextJs integration
 - [ ] Add TS/JS support
