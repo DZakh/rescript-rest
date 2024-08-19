@@ -12,9 +12,7 @@ function route(app, restRoute, handler) {
         method: params.definition.method,
         url: params.definition.path,
         handler: (function (request, reply) {
-            var variables = S$RescriptSchema.parseAnyOrRaiseWith({
-                  body: request.body
-                }, params.variablesSchema);
+            var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, params.variablesSchema);
             handler(variables).then(function (response) {
                   reply.send(response);
                 });

@@ -345,6 +345,8 @@ let params = route => {
           },
         })
       })
+      // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
+      (variablesSchema->Obj.magic)["f"] = ()
 
       let responses = Js.Dict.empty()
       routeDefinition.responses->Js.Array2.forEach(r => {

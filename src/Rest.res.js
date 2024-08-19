@@ -118,6 +118,7 @@ function params(route) {
                       })
                   });
       });
+  variablesSchema.f = undefined;
   var responses = {};
   routeDefinition.responses.forEach(function (r) {
         var builder = {

@@ -146,9 +146,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
     method: (params.definition.method :> string),
     url: params.definition.path,
     handler: (request, reply) => {
-      let variables = {
-        "body": request.body,
-      }->S.parseAnyOrRaiseWith(params.variablesSchema)
+      let variables = request->S.parseAnyOrRaiseWith(params.variablesSchema)
       let _ = handler(variables)->Promise.thenResolve(response => {
         reply.send(response)
       })
