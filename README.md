@@ -70,7 +70,7 @@ let result = await client.call(
     "page": Some(1),
   }
   // ^-- Fully typed!
-) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": 1}` headers
+) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": "1"}` headers
 ```
 
 Fulfil the contract on your sever, with a type-safe Fasitfy integration:
@@ -78,8 +78,8 @@ Fulfil the contract on your sever, with a type-safe Fasitfy integration:
 ```rescript
 let app = Fastify.make()
 
-app->Fastify.route(Contract.getPosts, async variables => {
-  prisma.post.findUnique({ where: { id: variables["id"] } })
+app->Fastify.route(Contract.getPosts, variables => {
+  queryPosts(~skip=variables["skip"], ~take=variables["take"], ~page=variables["page"])
 })
 // ^-- Both variables and return value are fully typed!
 
