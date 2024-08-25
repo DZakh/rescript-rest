@@ -106,8 +106,8 @@ asyncTest("Test simple POST request", async t => {
       args,
       {
         path: "http://localhost:3000/game",
-        body: %raw(`{"user_name":"Dmitry"}`),
-        headers: None,
+        body: `{"user_name":"Dmitry"}`->Obj.magic,
+        headers: %raw(`{"content-type": "application/json"}`),
         method: "POST",
       },
     )
@@ -162,12 +162,11 @@ asyncTest("Integration test of simple POST request", async t => {
   })
 
   let address = await app->Fastify.listenFirstAvailableLocalPort
+  await t->ExecutionContext.teardown(() => app->Fastify.close)
 
   let client = Rest.client(~baseUrl=address)
 
   t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
-
-  await app->Fastify.close
 
   t->ExecutionContext.plan(2)
 })
@@ -209,8 +208,11 @@ asyncTest("Test request with mixed body and header data", async t => {
       args,
       {
         path: "http://localhost:3000/game",
-        body: %raw(`{"user_name":"Dmitry"}`),
-        headers: Some(Js.Dict.fromArray([("x-version", 1->Obj.magic)])),
+        body: `{"user_name":"Dmitry"}`->Obj.magic,
+        headers: %raw(`{
+          "content-type": "application/json",
+          "x-version": 1
+        }`),
         method: "POST",
       },
     )
@@ -472,12 +474,12 @@ asyncTest("Example test", async t => {
         args,
         {
           path: "http://localhost:3000/posts",
-          body: %raw(`{"title":"How to use ReScript Rest?","body":"Read the documentation on GitHub"}`),
-          headers: None,
+          body: `{"title":"How to use ReScript Rest?","body":"Read the documentation on GitHub"}`->Obj.magic,
+          headers: %raw(`{"content-type": "application/json"}`),
           method: "POST",
         },
       )
-      let post = args.body->Obj.magic
+      let post = args.body->Obj.magic->Js.Json.parseExn->Obj.magic
       let _ = posts->Js.Array2.push(post)
       {data: post->Obj.magic, status: 201, headers: Js.Dict.empty()}
     } else {

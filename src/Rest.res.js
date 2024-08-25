@@ -4,23 +4,7 @@
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
 async function $$default(args) {
-  var match = args.body;
-  var body = match !== undefined ? JSON.stringify(args.body) : undefined;
-  var match$1 = args.body;
-  var headers;
-  if (match$1 !== undefined) {
-    var contentHeaders = {
-      "content-type": "application/json"
-    };
-    headers = args.headers === undefined ? contentHeaders : Object.assign(contentHeaders, args.headers);
-  } else {
-    headers = args.headers;
-  }
-  var result = await fetch(args.path, {
-        method: args.method,
-        body: body,
-        headers: headers
-      });
+  var result = await fetch(args.path, args);
   var contentType = result.headers.get("content-type");
   if (contentType && contentType.includes("application/") && contentType.includes("json")) {
     return {
@@ -301,6 +285,13 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
   var match = params(route);
   var responses = match.responses;
   var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
+  if (data.body !== (void 0)) {
+    data.body = (JSON.stringify(data["body"]));
+    if (data.headers === (void 0)) {
+      data.headers = {};
+    }
+    data.headers["content-type"] = "application/json";
+  }
   return fetcher({
                 body: data.body,
                 headers: data.headers,

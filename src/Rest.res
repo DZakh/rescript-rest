@@ -35,11 +35,6 @@ module Dict = {
   }
 }
 
-module Object = {
-  @val
-  external mixin: ({..} as 'a, {..}) => 'a = "Object.assign"
-}
-
 @inline
 let panic = message => Exn.raiseError(Exn.makeError(`[rescript-rest] ${message}`))
 
@@ -51,12 +46,7 @@ module ApiFetcher = {
   type response = {data: unknown, status: int, headers: dict<unknown>}
   type t = args => promise<response>
 
-  %%private(
-    external fetch: (
-      string,
-      {"method": string, "body": option<unknown>, "headers": option<dict<unknown>>},
-    ) => promise<{..}> = "fetch"
-  )
+  %%private(external fetch: (string, args) => promise<{..}> = "fetch")
 
   // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L102
   /**
@@ -67,36 +57,7 @@ module ApiFetcher = {
   * into the request to run custom logic
   */
   let default: t = async (args): response => {
-    let body = switch args.body {
-    | None => None
-    | Some(_) =>
-      args.body
-      ->(Obj.magic: option<unknown> => Js.Json.t)
-      ->Js.Json.stringify
-      ->(Obj.magic: string => option<unknown>)
-    }
-    let headers = switch args.body {
-    | None => args.headers
-    | Some(_) => {
-        let contentHeaders = {
-          "content-type": "application/json",
-        }
-
-        (
-          args.headers === None
-            ? contentHeaders
-            : Object.mixin(contentHeaders, args.headers->(Obj.magic: option<dict<unknown>> => {..}))
-        )->(Obj.magic: {..} => option<dict<unknown>>)
-      }
-    }
-    let result = await fetch(
-      args.path,
-      {
-        "method": args.method,
-        "body": body,
-        "headers": headers,
-      },
-    )
+    let result = await fetch(args.path, args)
     let contentType = result["headers"]["get"]("content-type")
 
     // Note: contentType might be null
@@ -558,6 +519,14 @@ let fetch = (
   let {definition, variablesSchema, responses, pathItems} = route->params
 
   let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
+
+  if data["body"] !== %raw(`void 0`) {
+    data["body"] = %raw(`JSON.stringify(data["body"])`)
+    if data["headers"] === %raw(`void 0`) {
+      data["headers"] = %raw(`{}`)
+    }
+    data["headers"]["content-type"] = "application/json"
+  }
 
   fetcher({
     body: data["body"],
