@@ -14,14 +14,21 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
-      - run: npm ci
-      - run: npm run res:build
-      - run: npm run coverage
-      - uses: codecov/codecov-action@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Compile ReScript
+        run: npm run res:build
+      - name: Run tests
+        run: npm run coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
