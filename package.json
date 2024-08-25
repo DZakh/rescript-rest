@@ -25,11 +25,13 @@
     "res": "rescript -w",
     "res:build": "rescript",
     "res:clean": "rescript clean",
-    "test": "ava"
+    "test": "ava",
+    "coverage": "c8 --reporter=lcov npm test"
   },
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
+    "c8": "10.1.2",
     "fastify": "4.28.1",
     "rescript": "11.1.3",
     "rescript-schema": "8.0.3"
