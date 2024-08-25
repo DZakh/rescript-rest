@@ -17,8 +17,6 @@
 - **Small package size and tree-shakable routes**  
   Routes comple to simple functions which allows tree-shaking only possible with ReScript.
 
-> ⚠️ **rescript-rest** is currently in Beta and has very limited list of features. Be aware of possible breaking changes ☺️
-
 > ⚠️ **rescript-rest** relies on **rescript-schema** which uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 ## Install
