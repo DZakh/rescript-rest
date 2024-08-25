@@ -1,3 +1,8 @@
+[![CI](https://github.com/DZakh/rescript-rest/actions/workflows/ci.yml/badge.svg)](https://github.com/DZakh/rescript-rest/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/DZakh/rescript-rest/branch/main/graph/badge.svg?token=40G6YKKD6J)](https://codecov.io/gh/DZakh/rescript-rest)
+
+<!-- [![npm](https://img.shields.io/npm/dm/rescript-rest)](https://www.npmjs.com/package/rescript-rest) -->
+
 # ReScript Rest 😴
 
 - **RPC-like client with no codegen**  
