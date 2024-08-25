@@ -6,8 +6,6 @@ var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
-var $$Promise = {};
-
 function route(app, restRoute, handler) {
   var match = Rest.params(restRoute);
   var variablesSchema = match.variablesSchema;
@@ -53,6 +51,5 @@ function route(app, restRoute, handler) {
       });
 }
 
-exports.$$Promise = $$Promise;
 exports.route = route;
 /* Rest Not a pure module */
