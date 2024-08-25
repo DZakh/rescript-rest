@@ -26,9 +26,9 @@ asyncTest("Empty app", async t => {
   t->Assert.deepEqual(
     response.json(),
     %raw(`{
-      "error":"Not Found",
-      "message":"Route GET:/ not found",
-      "statusCode":404
+      "error": "Not Found",
+      "message": "Route GET:/ not found",
+      "statusCode": 404
     }`),
   )
 })
@@ -129,6 +129,47 @@ asyncTest("Test simple POST request", async t => {
   )
 
   t->ExecutionContext.plan(4)
+})
+
+asyncTest("Integration test of simple POST request", async t => {
+  let userSchema = S.object(s =>
+    {
+      "userName": s.field("user_name", S.string),
+    }
+  )
+
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: Post,
+    variables: s => s.body(userSchema),
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "userName": "Dmitry",
+      },
+    )
+    true
+  })
+
+  let address = await app->Fastify.listenFirstAvailableLocalPort
+
+  let client = Rest.client(~baseUrl=address)
+
+  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
+
+  await app->Fastify.close
+
+  t->ExecutionContext.plan(2)
 })
 
 asyncTest("Test request with mixed body and header data", async t => {

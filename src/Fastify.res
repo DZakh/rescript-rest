@@ -138,6 +138,11 @@ external inject: (t, injectOptions) => promise<injectResponse> = "inject"
 external listen: (t, listenOptions) => promise<string> = "listen"
 
 @send
+external listenFirstAvailableLocalPort: t => promise<string> = "listen"
+
+@send external close: t => promise<unit> = "close"
+
+@send
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
