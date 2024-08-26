@@ -167,6 +167,49 @@ let getPosts = Rest.route(() => {
 })
 ```
 
+## Raw Body
+
+For some low-level APIs, you may need to send raw body without any additional processing. You can use `s.rawBody` method to define a raw body schema. The schema should be string-based, but you can apply transformations to it using `s.variant` or `s.transform` methods.
+
+```rescript
+let getLogs = Rest.route(() => {
+  path: "/logs",
+  method: POST,
+  variables: s => s.rawBody(S.string->S.transform(s => {
+    // If you use the route on server side, you should also provide the parse function here,
+    // But for client side, you can omit it
+    serialize: logLevel => {
+      `{
+        "size": 20,
+        "query": {
+          "bool": {
+            "must": [{"terms": {"log.level": ${logLevels}}}]
+          }
+        }
+      }`
+    }
+  })),
+  responses: [
+    s => s.data(S.array(S.string)),
+  ],
+})
+
+let result = await client.call(
+  getLogs,
+  "debug"
+) // ℹ️ It'll do a POST request to http://localhost:3000/logs with the body `{"size": 20, "query": {"bool": {"must": [{"terms": {"log.level": ["debug"]}}]}}}` and the headers `{"content-type": "application/json"}`
+```
+
+You can also use routes with `rawBody` on the server side with Fastify as any other route:
+
+```rescript
+app->Fastify.route(getLogs, async variables => {
+  // Do something with variables and return response
+})
+```
+
+> 🧠 Currently Raw Body is sent with the application/json Content Type. If you need support for other Content Types, please open an issue or PR.
+
 ## Responses
 
 Responses are described as an array of response definitions. It's possible to assign the definition to a specific status using `s.status` method.
