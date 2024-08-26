@@ -33,22 +33,37 @@ function route(app, restRoute, handler) {
     var pathItem = pathItems[idx];
     url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
   }
-  app.route({
-        method: match.definition.method,
-        url: url,
-        handler: (function (request, reply) {
-            var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
-            handler(variables).then(function (handlerReturn) {
-                  var response = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseParams.schema);
-                  var headers = response.headers;
-                  if (headers) {
-                    reply.headers(headers);
-                  }
-                  reply.status(status);
-                  reply.send(response.data);
-                });
-          })
-      });
+  var routeOptions_method = match.definition.method;
+  var routeOptions_handler = function (request, reply) {
+    var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
+    handler(variables).then(function (handlerReturn) {
+          var response = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseParams.schema);
+          var headers = response.headers;
+          if (headers) {
+            reply.headers(headers);
+          }
+          reply.status(status);
+          reply.send(response.data);
+        });
+  };
+  var routeOptions = {
+    method: routeOptions_method,
+    url: url,
+    handler: routeOptions_handler
+  };
+  if (match.isRawBody) {
+    app.register(function (app, param, done) {
+          app.addContentTypeParser("application/json", {
+                parseAs: "string"
+              }, (function (_req, data, done) {
+                  done(null, data);
+                }));
+          app.route(routeOptions);
+          done();
+        });
+  } else {
+    app.route(routeOptions);
+  }
 }
 
 exports.route = route;

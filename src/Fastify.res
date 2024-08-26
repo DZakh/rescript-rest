@@ -122,12 +122,6 @@ type reply = {
   status: int => unit,
 }
 
-type routeOptions = {
-  method: string,
-  url: string,
-  handler: (request, reply) => unit,
-}
-
 @module("fastify")
 external make: unit => t = "default"
 
@@ -140,13 +134,33 @@ external listen: (t, listenOptions) => promise<string> = "listen"
 @send
 external listenFirstAvailableLocalPort: t => promise<string> = "listen"
 
+@send
+external register: (t, (t, unknown, unit => unit) => unit) => unit = "register"
+
+type addContentTypeParserOptions = {
+  bodyLimit?: int,
+  parseAs?: [#buffer | #string],
+}
+@send
+external addContentTypeParser: (
+  t,
+  string,
+  addContentTypeParserOptions,
+  (request, unknown, (unknown, unknown) => unit) => unit,
+) => unit = "addContentTypeParser"
+
 @send external close: t => promise<unit> = "close"
 
+type routeOptions = {
+  method: string,
+  url: string,
+  handler: (request, reply) => unit,
+}
 @send
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
-  let {definition, variablesSchema, responses, pathItems} = restRoute->Rest.params
+  let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
   let responseParams = switch responses->Js.Dict.values {
   | [response] => response
   | _ =>
@@ -175,7 +189,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
     }
   }
 
-  app->route({
+  let routeOptions = {
     method: (definition.method :> string),
     url: url.contents,
     handler: (request, reply) => {
@@ -192,5 +206,23 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
         reply.send(response["data"])
       })
     },
-  })
+  }
+
+  if isRawBody {
+    app->register((app, _, done) => {
+      app->addContentTypeParser(
+        "application/json",
+        {
+          parseAs: #string,
+        },
+        (_req, data, done) => {
+          done(%raw(`null`), data)
+        },
+      )
+      app->route(routeOptions)
+      done()
+    })
+  } else {
+    app->route(routeOptions)
+  }
 }

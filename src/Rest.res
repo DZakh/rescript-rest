@@ -210,6 +210,7 @@ type pathItem = Static(string) | Param(pathParam)
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   body: 'value. S.t<'value> => 'value,
+  rawBody: 'value. S.t<'value> => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
@@ -240,6 +241,7 @@ type routeParams<'variables, 'response> = {
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
   responses: dict<Response.t<'response>>,
+  isRawBody: bool,
 }
 
 type route<'variables, 'response> = unit => definition<'variables, 'response>
@@ -324,12 +326,27 @@ let params = route => {
       let pathParams = Js.Dict.empty()
       parsePath(routeDefinition.path, ~pathItems, ~pathParams)
 
+      // Don't use ref, since it creates an unnecessary object
+      let isRawBody = %raw(`false`)
+
       let variablesSchema = S.object(s => {
         routeDefinition.variables({
           field: (fieldName, schema) => {
             s.nestedField("body", fieldName, schema)
           },
           body: schema => {
+            s.field("body", schema)
+          },
+          rawBody: schema => {
+            let isNonStringBased = switch schema->S.classify {
+            | Literal(String(_))
+            | String => false
+            | _ => true
+            }
+            if isNonStringBased {
+              panic("Only string-based schemas are allowed in rawBody")
+            }
+            let _ = %raw(`isRawBody = true`)
             s.field("body", schema)
           },
           header: (fieldName, schema) => {
@@ -392,6 +409,7 @@ let params = route => {
         variablesSchema,
         pathItems,
         responses,
+        isRawBody,
       }
       (route->Obj.magic)["_rest"] = params
       params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'variables, 'response>)
@@ -516,12 +534,14 @@ let fetch = (
   let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
   let variables = variables->(Obj.magic: variables => unknown)
 
-  let {definition, variablesSchema, responses, pathItems} = route->params
+  let {definition, variablesSchema, responses, pathItems, isRawBody} = route->params
 
   let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
   if data["body"] !== %raw(`void 0`) {
-    data["body"] = %raw(`JSON.stringify(data["body"])`)
+    if !isRawBody {
+      data["body"] = %raw(`JSON.stringify(data["body"])`)
+    }
     if data["headers"] === %raw(`void 0`) {
       data["headers"] = %raw(`{}`)
     }

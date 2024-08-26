@@ -105,6 +105,7 @@ module Response: {
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   body: 'value. S.t<'value> => 'value,
+  rawBody: 'value. S.t<'value> => 'value,
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
@@ -141,6 +142,7 @@ type routeParams<'variables, 'response> = {
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
   responses: dict<Response.t<'response>>,
+  isRawBody: bool,
 }
 
 let params: route<'variables, 'response> => routeParams<'variables, 'response>

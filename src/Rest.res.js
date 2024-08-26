@@ -146,12 +146,27 @@ function params(route) {
   var pathItems = [];
   var pathParams = {};
   parsePath(routeDefinition.path, pathItems, pathParams);
+  var isRawBody = false;
   var variablesSchema = S$RescriptSchema.object(function (s) {
         return routeDefinition.variables({
                     field: (function (fieldName, schema) {
                         return s.nestedField("body", fieldName, schema);
                       }),
                     body: (function (schema) {
+                        return s.f("body", schema);
+                      }),
+                    rawBody: (function (schema) {
+                        var match = S$RescriptSchema.classify(schema);
+                        var isNonStringBased;
+                        isNonStringBased = typeof match !== "object" ? (
+                            match === "String" ? false : true
+                          ) : (
+                            match.TAG === "Literal" && match._0.kind === "String" ? false : true
+                          );
+                        if (isNonStringBased) {
+                          throw new Error("[rescript-rest] Only string-based schemas are allowed in rawBody");
+                        }
+                        ((isRawBody = true));
                         return s.f("body", schema);
                       }),
                     header: (function (fieldName, schema) {
@@ -210,7 +225,8 @@ function params(route) {
     definition: routeDefinition,
     pathItems: pathItems,
     variablesSchema: variablesSchema,
-    responses: responses
+    responses: responses,
+    isRawBody: isRawBody
   };
   route._rest = params$2;
   return params$2;
@@ -286,7 +302,9 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
   var responses = match.responses;
   var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
   if (data.body !== (void 0)) {
-    data.body = (JSON.stringify(data["body"]));
+    if (!match.isRawBody) {
+      data.body = (JSON.stringify(data["body"]));
+    }
     if (data.headers === (void 0)) {
       data.headers = {};
     }

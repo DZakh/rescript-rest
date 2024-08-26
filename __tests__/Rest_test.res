@@ -845,3 +845,104 @@ asyncTest("Fails with an invalid response data", async t => {
     ~expectations={message: `Failed parsing at ["data"]. Reason: Expected true, received false`},
   )
 })
+
+asyncTest("Test POST request with rawBody", async t => {
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: Post,
+    variables: s => s.rawBody(S.string->S.variant(s => Ok(s))),
+    responses: [
+      s => {
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(variables, Ok("[12, 123]"))
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: `[12, 123]`->Obj.magic,
+        headers: %raw(`{"content-type": "application/json"}`),
+        method: "POST",
+      },
+    )
+
+    app->inject(args)
+  })
+
+  t->Assert.deepEqual(await client.call(createGame, Ok("[12, 123]")), true)
+
+  t->ExecutionContext.plan(3)
+})
+
+asyncTest("Test POST request with literal rawBody", async t => {
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: Post,
+    variables: s => {
+      let _ = s.rawBody(S.literal(`{"version": 1}`))
+    },
+    responses: [
+      s => {
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(variables, ())
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: `{"version": 1}`->Obj.magic,
+        headers: %raw(`{"content-type": "application/json"}`),
+        method: "POST",
+      },
+    )
+
+    app->inject(args)
+  })
+
+  t->Assert.deepEqual(await client.call(createGame, ()), true)
+
+  t->ExecutionContext.plan(3)
+})
+
+asyncTest("Fails when rawBody is not a string-based schema", async t => {
+  let client = Rest.client(
+    ~baseUrl="http://localhost:3000",
+    ~fetcher=async (_): Rest.ApiFetcher.response => {
+      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    },
+  )
+
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: Get,
+    variables: s => {
+      s.rawBody(S.int)
+    },
+    responses: [],
+  })
+
+  t->Assert.throws(
+    () => client.call(getHeight, 12),
+    ~expectations={
+      message: `[rescript-rest] Only string-based schemas are allowed in rawBody`,
+    },
+  )
+})
