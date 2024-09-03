@@ -153,18 +153,30 @@ You can also configure rescript-rest to encode/decode query parameters as JSON b
 
 You can add headers to the request by using the `s.header` method in the `variables` definition.
 
+### Authentication header
+
+For the Authentication header there's an additional helper `s.auth` which supports `Bearer` and `Basic` authentication schemes.
+
 ```rescript
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: Get,
   variables: s => {
-    "authorization": s.header("authorization", S.string),
-    "pagination": s.header("pagination", S.option(S.int)),
+    "token": s.auth(Bearer),
+    "pagination": s.header("x-pagination", S.option(S.int)),
   },
   responses: [
     s => s.data(S.array(postSchema)),
   ],
 })
+
+let result = await client.call(
+  getPosts,
+  {
+    "token": "abc",
+    "pagination": 10,
+  }
+) // ℹ️ It'll do a GET request to http://localhost:3000/posts with the `{"authorization": "Bearer abc", "x-pagination": "10"}` headers
 ```
 
 ## Raw Body

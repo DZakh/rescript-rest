@@ -227,6 +227,106 @@ asyncTest("Test request with mixed body and header data", async t => {
   t->ExecutionContext.plan(3)
 })
 
+asyncTest("Test request with Bearer auth", async t => {
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: Post,
+    variables: s =>
+      {
+        "userName": s.field("user_name", S.string),
+        "bearer": s.auth(Bearer),
+      },
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "userName": "Dmitry",
+        "bearer": "abc",
+      },
+    )
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: `{"user_name":"Dmitry"}`->Obj.magic,
+        headers: %raw(`{
+          "content-type": "application/json",
+          "authorization": "Bearer abc"
+        }`),
+        method: "POST",
+      },
+    )
+    app->inject(args)
+  })
+
+  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry", "bearer": "abc"}), true)
+
+  t->ExecutionContext.plan(3)
+})
+
+asyncTest("Test request with Basic auth", async t => {
+  let createGame = Rest.route(() => {
+    path: "/game",
+    method: Post,
+    variables: s =>
+      {
+        "userName": s.field("user_name", S.string),
+        "token": s.auth(Basic),
+      },
+    responses: [
+      s => {
+        s.status(#200)
+        s.data(S.bool)
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(createGame, async variables => {
+    t->Assert.deepEqual(
+      variables,
+      {
+        "userName": "Dmitry",
+        "token": "abc",
+      },
+    )
+    true
+  })
+
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/game",
+        body: `{"user_name":"Dmitry"}`->Obj.magic,
+        headers: %raw(`{
+          "content-type": "application/json",
+          "authorization": "Basic abc"
+        }`),
+        method: "POST",
+      },
+    )
+    app->inject(args)
+  })
+
+  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry", "token": "abc"}), true)
+
+  t->ExecutionContext.plan(3)
+})
+
 asyncTest("Test simple GET request", async t => {
   let getHeight = Rest.route(() => {
     path: "/height",

@@ -102,6 +102,8 @@ module Response: {
   }
 }
 
+type auth = Bearer | Basic
+
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   body: 'value. S.t<'value> => 'value,
@@ -109,6 +111,7 @@ type s = {
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
+  auth: auth => string,
 }
 
 type method =

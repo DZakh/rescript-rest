@@ -137,6 +137,46 @@ function coerceSchema(schema) {
               }));
 }
 
+var bearerAuthSchema = S$RescriptSchema.transform(S$RescriptSchema.string, (function (s) {
+        return {
+                p: (function (string) {
+                    var match = string.split(" ");
+                    if (match.length !== 2) {
+                      return s.fail("Invalid Bearer token", undefined);
+                    }
+                    var match$1 = match[0];
+                    if (match$1 === "Bearer") {
+                      return match[1];
+                    } else {
+                      return s.fail("Invalid Bearer token", undefined);
+                    }
+                  }),
+                s: (function (token) {
+                    return "Bearer " + token;
+                  })
+              };
+      }));
+
+var basicAuthSchema = S$RescriptSchema.transform(S$RescriptSchema.string, (function (s) {
+        return {
+                p: (function (string) {
+                    var match = string.split(" ");
+                    if (match.length !== 2) {
+                      return s.fail("Invalid Basic token", undefined);
+                    }
+                    var match$1 = match[0];
+                    if (match$1 === "Basic") {
+                      return match[1];
+                    } else {
+                      return s.fail("Invalid Basic token", undefined);
+                    }
+                  }),
+                s: (function (token) {
+                    return "Basic " + token;
+                  })
+              };
+      }));
+
 function params(route) {
   var params$1 = route._rest;
   if (params$1 !== undefined) {
@@ -180,6 +220,11 @@ function params(route) {
                           throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
                         }
                         return s.nestedField("params", fieldName, coerceSchema(schema));
+                      }),
+                    auth: (function (auth) {
+                        var tmp;
+                        tmp = auth === "Bearer" ? bearerAuthSchema : basicAuthSchema;
+                        return s.nestedField("headers", "authorization", tmp);
                       })
                   });
       });
@@ -350,4 +395,4 @@ exports.$$Response = $$Response;
 exports.params = params;
 exports.client = client;
 exports.$$fetch = $$fetch$1;
-/* S-RescriptSchema Not a pure module */
+/* bearerAuthSchema Not a pure module */

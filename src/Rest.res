@@ -207,6 +207,8 @@ type pathParam = {name: string}
 @unboxed
 type pathItem = Static(string) | Param(pathParam)
 
+type auth = Bearer | Basic
+
 type s = {
   field: 'value. (string, S.t<'value>) => 'value,
   body: 'value. S.t<'value> => 'value,
@@ -214,6 +216,7 @@ type s = {
   header: 'value. (string, S.t<'value>) => 'value,
   query: 'value. (string, S.t<'value>) => 'value,
   param: 'value. (string, S.t<'value>) => 'value,
+  auth: auth => string,
 }
 
 type method =
@@ -312,6 +315,30 @@ let coerceSchema = schema => {
   })
 }
 
+let bearerAuthSchema = S.string->S.transform(s => {
+  serializer: token => {
+    `Bearer ${token}`
+  },
+  parser: string => {
+    switch string->Js.String2.split(" ") {
+    | ["Bearer", token] => token
+    | _ => s.fail("Invalid Bearer token")
+    }
+  },
+})
+
+let basicAuthSchema = S.string->S.transform(s => {
+  serializer: token => {
+    `Basic ${token}`
+  },
+  parser: string => {
+    switch string->Js.String2.split(" ") {
+    | ["Basic", token] => token
+    | _ => s.fail("Invalid Basic token")
+    }
+  },
+})
+
 let params = route => {
   switch (route->Obj.magic)["_rest"]->(
     Obj.magic: unknown => option<routeParams<'variables, 'response>>
@@ -360,6 +387,16 @@ let params = route => {
               panic(`Path parameter "${fieldName}" is not defined in the path`)
             }
             s.nestedField("params", fieldName, coerceSchema(schema))
+          },
+          auth: auth => {
+            s.nestedField(
+              "headers",
+              "authorization",
+              switch auth {
+              | Bearer => bearerAuthSchema
+              | Basic => basicAuthSchema
+              },
+            )
           },
         })
       })
