@@ -32,12 +32,12 @@
     "@dzakh/rescript-ava": "3.0.0",
     "ava": "5.2.x",
     "c8": "10.1.2",
-    "fastify": "4.28.1",
+    "fastify": "5.0.0",
     "rescript": "11.1.4",
     "rescript-schema": "8.4.0"
   },
   "peerDependencies": {
-    "fastify": "4.x",
+    "fastify": "4.x || 5.x",
     "rescript": "11.x",
     "rescript-schema": "^8.4.0"
   },
