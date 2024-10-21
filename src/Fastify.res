@@ -1,3 +1,5 @@
+open RescriptSchema
+
 module Obj = {
   external magic: 'a => 'b = "%identity"
 }
@@ -196,7 +198,17 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
     method: (definition.method :> string),
     url: url.contents,
     handler: (request, reply) => {
-      let variables = request->(Obj.magic: request => unknown)->parseVariables
+      let variables = try request->(Obj.magic: request => unknown)->parseVariables catch {
+      | S.Raised(error) => {
+          reply.status(400)
+          reply.send({
+            "statusCode": 400,
+            "error": "Bad Request",
+            "message": error->S.Error.message,
+          })
+          raise(%raw(`0`))
+        }
+      }
       let _ = handler(variables)->Promise.thenResolve(handlerReturn => {
         let data = handlerReturn->responseToData
         let headers = data["headers"]

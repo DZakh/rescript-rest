@@ -4,6 +4,8 @@
 var Rest = require("./Rest.res.js");
 var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
+var S$RescriptSchema = require("rescript-schema/src/S.res.js");
+var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function route(app, restRoute, handler) {
   var match = Rest.params(restRoute);
@@ -35,7 +37,23 @@ function route(app, restRoute, handler) {
   }
   var routeOptions_method = match.definition.method;
   var routeOptions_handler = function (request, reply) {
-    var variables = parseVariables(request);
+    var variables;
+    try {
+      variables = parseVariables(request);
+    }
+    catch (raw_error){
+      var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+      if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
+        reply.status(400);
+        reply.send({
+              statusCode: 400,
+              error: "Bad Request",
+              message: S$RescriptSchema.$$Error.message(error._1)
+            });
+        throw 0;
+      }
+      throw error;
+    }
     handler(variables).then(function (handlerReturn) {
           var data = responseToData(handlerReturn);
           var headers = data.headers;

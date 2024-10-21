@@ -63,10 +63,9 @@ asyncTest("Validation error on not providing body", async t => {
   t->Assert.deepEqual(
     response.json(),
     %raw(`{
-      "code": "[object Object]",
-      "error": "Internal Server Error",
+      "error": "Bad Request",
       "message": "Failed parsing at [\"body\"]. Reason: Expected Object({\"a\": String}), received undefined",
-      "statusCode": 500
+      "statusCode": 400
     }`),
   )
 })
@@ -124,7 +123,7 @@ asyncTest("Test simple POST request", async t => {
   await t->Assert.throwsAsync(
     client.call(createGame, %raw(`{"userName": 123}`)),
     ~expectations={
-      message: `[rescript-rest] Server returned unexpected response "500". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected String, received 123`,
+      message: `[rescript-rest] Server returned unexpected response "400". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected String, received 123`,
     },
   )
 
