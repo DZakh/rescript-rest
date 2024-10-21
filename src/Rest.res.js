@@ -229,7 +229,7 @@ function params(route) {
                   });
       });
   variablesSchema.f = undefined;
-  var items = variablesSchema.r.items;
+  var items = variablesSchema.t.items;
   items.forEach(function (item) {
         var schema = item.t;
         schema.f = (function (_b, inputVar) {
@@ -237,6 +237,7 @@ function params(route) {
           });
       });
   var responses = {};
+  var responseSchemas = [];
   routeDefinition.responses.forEach(function (r) {
         var builder = {
           statuses: []
@@ -265,11 +266,20 @@ function params(route) {
           register(responses, "default", builder);
         }
         builder.schema = schema;
+        responseSchemas.push(schema);
       });
+  var params_variablesToData = S$RescriptSchema.compile(S$RescriptSchema.reverse(variablesSchema), "Unknown", "Unknown", "Sync", false);
+  var params_responseToData = responseSchemas.length !== 0 ? S$RescriptSchema.compile(S$RescriptSchema.reverse(S$RescriptSchema.union(responseSchemas)), "Unknown", "Unknown", "Sync", false) : (function (param) {
+        return {};
+      });
+  var params_parseVariables = S$RescriptSchema.compile(variablesSchema, "Unknown", "Output", "Sync", true);
   var params$2 = {
     definition: routeDefinition,
     pathItems: pathItems,
     variablesSchema: variablesSchema,
+    variablesToData: params_variablesToData,
+    responseToData: params_responseToData,
+    parseVariables: params_parseVariables,
     responses: responses,
     isRawBody: isRawBody
   };
@@ -345,7 +355,7 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var match = params(route);
   var responses = match.responses;
-  var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
+  var data = match.variablesToData(variables);
   if (data.body !== (void 0)) {
     if (!match.isRawBody) {
       data.body = (JSON.stringify(data["body"]));

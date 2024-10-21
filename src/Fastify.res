@@ -1,4 +1,6 @@
-open RescriptSchema
+module Obj = {
+  external magic: 'a => 'b = "%identity"
+}
 
 module Promise = {
   type t<+'a> = promise<'a>
@@ -160,7 +162,8 @@ type routeOptions = {
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
-  let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
+  let {definition, parseVariables, responses, responseToData, pathItems, isRawBody} =
+    restRoute->Rest.params
   let responseParams = switch responses->Js.Dict.values {
   | [response] => response
   | _ =>
@@ -193,17 +196,15 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
     method: (definition.method :> string),
     url: url.contents,
     handler: (request, reply) => {
-      let variables = request->S.parseAnyOrRaiseWith(variablesSchema)
+      let variables = request->(Obj.magic: request => unknown)->parseVariables
       let _ = handler(variables)->Promise.thenResolve(handlerReturn => {
-        let response: {..} = Obj.magic(
-          (handlerReturn->S.serializeToUnknownOrRaiseWith(responseParams.schema): unknown),
-        )
-        let headers = response["headers"]
+        let data = handlerReturn->responseToData
+        let headers = data["headers"]
         if headers->Obj.magic {
           reply.headers(headers)
         }
         reply.status(status)
-        reply.send(response["data"])
+        reply.send(data["data"])
       })
     },
   }

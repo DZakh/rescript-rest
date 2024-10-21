@@ -243,6 +243,9 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
+  variablesToData: 'payload. 'variables => ({..} as 'payload),
+  responseToData: 'payload. 'response => ({..} as 'payload),
+  parseVariables: unknown => 'variables,
   responses: dict<Response.t<'response>>,
   isRawBody: bool,
 }
@@ -404,7 +407,7 @@ let params = route => {
       {
         // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
         (variablesSchema->Obj.magic)["f"] = ()
-        let items: array<S.item> = (variablesSchema->Obj.magic)["r"]["items"]
+        let items: array<S.item> = (variablesSchema->Obj.magic)["t"]["items"]
         items->Js.Array2.forEach(item => {
           let schema = item.schema
           // Remove ${inputVar}.constructor!==Object check
@@ -413,6 +416,7 @@ let params = route => {
       }
 
       let responses = Js.Dict.empty()
+      let responseSchemas = []
       routeDefinition.responses->Js.Array2.forEach(r => {
         let builder: Response.builder<unknown> = {
           statuses: [],
@@ -439,6 +443,7 @@ let params = route => {
           responses->Response.register(#default, builder)
         }
         builder.schema = Option.unsafeSome(schema)
+        responseSchemas->Js.Array2.push(schema)->ignore
       })
 
       let params = {
@@ -447,6 +452,24 @@ let params = route => {
         pathItems,
         responses,
         isRawBody,
+        variablesToData: variablesSchema
+        ->S.reverse
+        ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
+        ->(Obj.magic: (unknown => unknown) => unknown => {..}),
+        responseToData: switch responseSchemas {
+        | [] => _ => %raw(`{}`)
+        | _ =>
+          S.union(responseSchemas)
+          ->S.reverse
+          ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
+          ->(Obj.magic: (unknown => unknown) => unknown => {..})
+        },
+        parseVariables: variablesSchema->S.compile(
+          ~input=Unknown,
+          ~output=Output,
+          ~mode=Sync,
+          ~typeValidation=true,
+        ),
       }
       (route->Obj.magic)["_rest"] = params
       params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'variables, 'response>)
@@ -571,9 +594,9 @@ let fetch = (
   let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
   let variables = variables->(Obj.magic: variables => unknown)
 
-  let {definition, variablesSchema, responses, pathItems, isRawBody} = route->params
+  let {definition, variablesToData, responses, pathItems, isRawBody} = route->params
 
-  let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
+  let data = variables->variablesToData
 
   if data["body"] !== %raw(`void 0`) {
     if !isRawBody {

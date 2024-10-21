@@ -4,11 +4,11 @@
 var Rest = require("./Rest.res.js");
 var Js_exn = require("rescript/lib/js/js_exn.js");
 var Js_dict = require("rescript/lib/js/js_dict.js");
-var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 
 function route(app, restRoute, handler) {
   var match = Rest.params(restRoute);
-  var variablesSchema = match.variablesSchema;
+  var parseVariables = match.parseVariables;
+  var responseToData = match.responseToData;
   var pathItems = match.pathItems;
   var match$1 = Js_dict.values(match.responses);
   var responseParams = match$1.length !== 1 ? Js_exn.raiseError("[rescript-rest] Rest route currently supports only one response definition") : match$1[0];
@@ -35,15 +35,15 @@ function route(app, restRoute, handler) {
   }
   var routeOptions_method = match.definition.method;
   var routeOptions_handler = function (request, reply) {
-    var variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
+    var variables = parseVariables(request);
     handler(variables).then(function (handlerReturn) {
-          var response = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseParams.schema);
-          var headers = response.headers;
+          var data = responseToData(handlerReturn);
+          var headers = data.headers;
           if (headers) {
             reply.headers(headers);
           }
           reply.status(status);
-          reply.send(response.data);
+          reply.send(data.data);
         });
   };
   var routeOptions = {
