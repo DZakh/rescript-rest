@@ -144,9 +144,7 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
-  variablesToData: 'payload. 'variables => ({..} as 'payload),
-  responseToData: 'payload. 'response => ({..} as 'payload),
-  parseVariables: unknown => 'variables,
+  responseSchemas: array<S.t<'response>>,
   responses: dict<Response.t<'response>>,
   isRawBody: bool,
 }

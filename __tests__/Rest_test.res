@@ -949,7 +949,7 @@ asyncTest("Test POST request with rawBody", async t => {
   let createGame = Rest.route(() => {
     path: "/game",
     method: Post,
-    variables: s => s.rawBody(S.string->S.to(s => Ok(s))),
+    variables: s => s.rawBody(S.string->S.variant(s => Ok(s))),
     responses: [
       s => {
         s.data(S.bool)

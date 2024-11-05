@@ -243,9 +243,7 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
-  variablesToData: 'payload. 'variables => ({..} as 'payload),
-  responseToData: 'payload. 'response => ({..} as 'payload),
-  parseVariables: unknown => 'variables,
+  responseSchemas: array<S.t<'response>>,
   responses: dict<Response.t<'response>>,
   isRawBody: bool,
 }
@@ -407,7 +405,7 @@ let params = route => {
       {
         // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
         (variablesSchema->Obj.magic)["f"] = ()
-        let items: array<S.item> = (variablesSchema->Obj.magic)["t"]["items"]
+        let items: array<S.item> = (variablesSchema->Obj.magic)["r"]["items"]
         items->Js.Array2.forEach(item => {
           let schema = item.schema
           // Remove ${inputVar}.constructor!==Object check
@@ -424,10 +422,10 @@ let params = route => {
         let schema = S.object(s => {
           r({
             status: status => {
-              responses->Response.register(status->Obj.magic, builder) // FIXME: Obj.magic
-              let _ = builder.statuses->Js.Array2.push(status->Obj.magic) // FIXME: Obj.magic
-              let schema = S.literal(status)
-              let _ = s.field("status", schema)
+              let status = status->(Obj.magic: int => Response.status)
+              responses->Response.register(status->Obj.magic, builder)
+              let _ = builder.statuses->Js.Array2.push(status->Obj.magic)
+              s.tag("status", status)
             },
             description: d => builder.description = Some(d),
             field: (fieldName, schema) => {
@@ -444,8 +442,8 @@ let params = route => {
         if builder.statuses->Js.Array2.length === 0 {
           responses->Response.register(#default, builder)
         }
-        builder.schema = Option.unsafeSome(schema)
         responseSchemas->Js.Array2.push(schema)->ignore
+        builder.schema = Option.unsafeSome(schema)
       })
 
       if responseSchemas->Js.Array2.length === 0 {
@@ -455,23 +453,10 @@ let params = route => {
       let params = {
         definition: routeDefinition,
         variablesSchema,
+        responseSchemas,
         pathItems,
         responses,
         isRawBody,
-        variablesToData: variablesSchema
-        ->S.reverse
-        ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
-        ->(Obj.magic: (unknown => unknown) => unknown => {..}),
-        responseToData: S.union(responseSchemas)
-        ->S.reverse
-        ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
-        ->(Obj.magic: (unknown => unknown) => unknown => {..}),
-        parseVariables: variablesSchema->S.compile(
-          ~input=Unknown,
-          ~output=Output,
-          ~mode=Sync,
-          ~typeValidation=true,
-        ),
       }
       (route->Obj.magic)["_rest"] = params
       params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'variables, 'response>)
@@ -596,9 +581,9 @@ let fetch = (
   let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
   let variables = variables->(Obj.magic: variables => unknown)
 
-  let {definition, variablesToData, responses, pathItems, isRawBody} = route->params
+  let {definition, variablesSchema, responses, pathItems, isRawBody} = route->params
 
-  let data = variables->variablesToData
+  let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
   if data["body"] !== %raw(`void 0`) {
     if !isRawBody {

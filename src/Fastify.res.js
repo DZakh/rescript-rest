@@ -7,9 +7,9 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function route(app, restRoute, fn) {
   var match = Rest.params(restRoute);
-  var parseVariables = match.parseVariables;
-  var responseToData = match.responseToData;
+  var variablesSchema = match.variablesSchema;
   var pathItems = match.pathItems;
+  var responseSchema = S$RescriptSchema.union(match.responseSchemas);
   var url = "";
   for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
     var pathItem = pathItems[idx];
@@ -19,7 +19,7 @@ function route(app, restRoute, fn) {
   var routeOptions_handler = function (request, reply) {
     var variables;
     try {
-      variables = parseVariables(request);
+      variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
     }
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -35,7 +35,7 @@ function route(app, restRoute, fn) {
       throw error;
     }
     fn(variables).then(function (handlerReturn) {
-          var data = responseToData(handlerReturn);
+          var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseSchema);
           var headers = data.headers;
           if (headers) {
             reply.headers(headers);

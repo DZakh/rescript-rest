@@ -53,7 +53,7 @@ let getPosts = Rest.route(() => {
   },
   responses: [
     s => {
-      s.status(#200)
+      s.status(200)
       s.field("posts", S.array(postSchema))
     },
   ],
@@ -226,6 +226,8 @@ app->Fastify.route(getLogs, async variables => {
 
 Responses are described as an array of response definitions. It's possible to assign the definition to a specific status using `s.status` method.
 
+If `s.status` is not used in a response definition, it'll be treated as a `default` case, accepting a response with any status code. And for the server-side code, it'll send a response with the status code `200`.
+
 ```rescript
 let createPost = Rest.route(() => {
   path: "/posts",
@@ -233,18 +235,18 @@ let createPost = Rest.route(() => {
   variables: _ => (),
   responses: [
     s => {
-      s.status(#201)
+      s.status(201)
       Ok(s.data(postSchema))
     },
     s => {
-      s.status(#404)
+      s.status(404)
       Error(s.field("message", S.string))
     },
   ],
 })
 ```
 
-You can use `s.status` multiple times. To define a range of response statuses, you may use `1XX`, `2XX`, `3XX`, `4XX` and `5XX`. If `s.status` is not used in a response definition, it'll be treated as a `default` case, accepting a response with any status code.
+<!-- You can use `s.status` multiple times. To define a range of response statuses, you may use `1XX`, `2XX`, `3XX`, `4XX` and `5XX`.
 
 ```rescript
 let createPost = Rest.route(() => {
@@ -253,21 +255,22 @@ let createPost = Rest.route(() => {
   variables: _ => (),
   responses: [
     s => {
-      s.status(#201)
+      s.status(201)
       Ok(s.data(postSchema))
     },
     s => {
-      s.status(#404)
+      s.status(404)
       Error(s.field("message", S.string))
     },
     s => {
-      s.status(#"5XX")
+      s.status("5XX")
       Error("Server Error")
     },
     s => Error("Unexpected Error"),
   ],
 })
 ```
+-->
 
 ## Response Headers
 
@@ -291,7 +294,7 @@ let ping = Rest.route(() => {
   variables: _ => (),
   responses: [
     s => {
-      s.status(#200)
+      s.status(200)
       s.description("OK")
       {
         "limit": s.header("X-RateLimit-Limit", S.int->S.description("Request limit per hour.")),

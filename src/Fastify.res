@@ -164,7 +164,9 @@ type routeOptions = {
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
-  let {definition, parseVariables, responseToData, pathItems, isRawBody} = restRoute->Rest.params
+  let {definition, variablesSchema, responseSchemas, pathItems, isRawBody} = restRoute->Rest.params
+
+  let responseSchema = S.union(responseSchemas)
 
   let url = ref("")
   for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -179,7 +181,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     method: (definition.method :> string),
     url: url.contents,
     handler: (request, reply) => {
-      let variables = try request->(Obj.magic: request => unknown)->parseVariables catch {
+      let variables = try request->S.parseAnyOrRaiseWith(variablesSchema) catch {
       | S.Raised(error) => {
           reply.status(400)
           reply.send({
@@ -191,7 +193,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
         }
       }
       let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
-        let data = handlerReturn->responseToData
+        let data: {..} = handlerReturn->S.serializeToUnknownOrRaiseWith(responseSchema)->Obj.magic
         let headers = data["headers"]
         if headers->Obj.magic {
           reply.headers(headers)
