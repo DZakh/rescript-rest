@@ -247,6 +247,8 @@ function params(route) {
                           status: (function (status) {
                               register(responses, status, builder);
                               builder.statuses.push(status);
+                              var schema = S$RescriptSchema.literal(status);
+                              s.f("status", schema);
                             }),
                           description: (function (d) {
                               builder.description = d;
@@ -268,10 +270,11 @@ function params(route) {
         builder.schema = schema;
         responseSchemas.push(schema);
       });
+  if (responseSchemas.length === 0) {
+    throw new Error("[rescript-rest] At least single response should be registered");
+  }
   var params_variablesToData = S$RescriptSchema.compile(S$RescriptSchema.reverse(variablesSchema), "Unknown", "Unknown", "Sync", false);
-  var params_responseToData = responseSchemas.length !== 0 ? S$RescriptSchema.compile(S$RescriptSchema.reverse(S$RescriptSchema.union(responseSchemas)), "Unknown", "Unknown", "Sync", false) : (function (param) {
-        return {};
-      });
+  var params_responseToData = S$RescriptSchema.compile(S$RescriptSchema.reverse(S$RescriptSchema.union(responseSchemas)), "Unknown", "Unknown", "Sync", false);
   var params_parseVariables = S$RescriptSchema.compile(variablesSchema, "Unknown", "Output", "Sync", true);
   var params$2 = {
     definition: routeDefinition,
@@ -376,7 +379,7 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
               if (response !== undefined) {
                 return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
               }
-              var error = "Server returned unexpected response \"" + fetcherResponse.status.toString() + "\"";
+              var error = "Unexpected response status \"" + fetcherResponse.status.toString() + "\"";
               if (fetcherResponse.data && typeof fetcherResponse.data.message === "string") {
                 error = error + ". Message: " + fetcherResponse.data.message;
               }

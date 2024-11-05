@@ -163,27 +163,8 @@ type routeOptions = {
 @send
 external route: (t, routeOptions) => unit = "route"
 
-let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
-  let {definition, parseVariables, responses, responseToData, pathItems, isRawBody} =
-    restRoute->Rest.params
-  let responseParams = switch responses->Js.Dict.values {
-  | [response] => response
-  | _ =>
-    Js.Exn.raiseError("[rescript-rest] Rest route currently supports only one response definition")
-  }
-  let status = switch responseParams.statuses {
-  | [] => 200
-  | _ =>
-    switch responseParams.statuses->Js.Array2.unsafe_get(0) {
-    | #"1XX" => 100
-    | #"2XX" => 200
-    | #"3XX" => 300
-    | #"4XX" => 400
-    | #"5XX" => 500
-    | #...Rest.Response.numiricStatus as numiricStatus =>
-      (numiricStatus: Rest.Response.numiricStatus :> int)
-    }
-  }
+let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
+  let {definition, parseVariables, responseToData, pathItems, isRawBody} = restRoute->Rest.params
 
   let url = ref("")
   for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -209,13 +190,13 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, handler) => {
           raise(%raw(`0`))
         }
       }
-      let _ = handler(variables)->Promise.thenResolve(handlerReturn => {
+      let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
         let data = handlerReturn->responseToData
         let headers = data["headers"]
         if headers->Obj.magic {
           reply.headers(headers)
         }
-        reply.status(status)
+        reply.status(%raw(`data.status || 200`))
         reply.send(data["data"])
       })
     },

@@ -156,7 +156,7 @@ module Response = {
   ]
 
   type s = {
-    status: status => unit,
+    status: int => unit,
     description: string => unit,
     data: 'value. S.t<'value> => 'value,
     field: 'value. (string, S.t<'value>) => 'value,
@@ -424,8 +424,10 @@ let params = route => {
         let schema = S.object(s => {
           r({
             status: status => {
-              responses->Response.register(status, builder)
-              let _ = builder.statuses->Js.Array2.push(status)
+              responses->Response.register(status->Obj.magic, builder) // FIXME: Obj.magic
+              let _ = builder.statuses->Js.Array2.push(status->Obj.magic) // FIXME: Obj.magic
+              let schema = S.literal(status)
+              let _ = s.field("status", schema)
             },
             description: d => builder.description = Some(d),
             field: (fieldName, schema) => {
@@ -446,6 +448,10 @@ let params = route => {
         responseSchemas->Js.Array2.push(schema)->ignore
       })
 
+      if responseSchemas->Js.Array2.length === 0 {
+        panic("At least single response should be registered")
+      }
+
       let params = {
         definition: routeDefinition,
         variablesSchema,
@@ -456,14 +462,10 @@ let params = route => {
         ->S.reverse
         ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
         ->(Obj.magic: (unknown => unknown) => unknown => {..}),
-        responseToData: switch responseSchemas {
-        | [] => _ => %raw(`{}`)
-        | _ =>
-          S.union(responseSchemas)
-          ->S.reverse
-          ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
-          ->(Obj.magic: (unknown => unknown) => unknown => {..})
-        },
+        responseToData: S.union(responseSchemas)
+        ->S.reverse
+        ->S.compile(~input=Unknown, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
+        ->(Obj.magic: (unknown => unknown) => unknown => {..}),
         parseVariables: variablesSchema->S.compile(
           ~input=Unknown,
           ~output=Output,
@@ -622,9 +624,7 @@ let fetch = (
   })->Promise.thenResolve(fetcherResponse => {
     switch responses->Response.find(fetcherResponse.status) {
     | None =>
-      let error = ref(
-        `Server returned unexpected response "${fetcherResponse.status->Js.Int.toString}"`,
-      )
+      let error = ref(`Unexpected response status "${fetcherResponse.status->Js.Int.toString}"`)
       if (
         fetcherResponse.data->Obj.magic &&
           Js.typeof((fetcherResponse.data->Obj.magic)["message"]) === "string"

@@ -46,7 +46,7 @@ asyncTest("Validation error on not providing body", async t => {
           },
         responses: [
           s => {
-            s.status(#200)
+            s.status(200)
             s.data(S.bool)
           },
         ],
@@ -83,7 +83,7 @@ asyncTest("Test simple POST request", async t => {
     variables: s => s.body(userSchema),
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -123,7 +123,7 @@ asyncTest("Test simple POST request", async t => {
   await t->Assert.throwsAsync(
     client.call(createGame, %raw(`{"userName": 123}`)),
     ~expectations={
-      message: `[rescript-rest] Server returned unexpected response "400". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected String, received 123`,
+      message: `[rescript-rest] Unexpected response status "400". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected String, received 123`,
     },
   )
 
@@ -143,7 +143,7 @@ asyncTest("Integration test of simple POST request", async t => {
     variables: s => s.body(userSchema),
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -181,7 +181,7 @@ asyncTest("Test request with mixed body and header data", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         {
           "userName": s.field("user_name", S.string),
           "version": s.header("X-Version", S.int),
@@ -237,7 +237,7 @@ asyncTest("Test request with Bearer auth", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -287,7 +287,7 @@ asyncTest("Test request with Basic auth", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -333,7 +333,7 @@ asyncTest("Test simple GET request", async t => {
     variables: _ => (),
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -397,7 +397,7 @@ asyncTest("Test query params encoding to path", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -495,7 +495,7 @@ asyncTest("Test query params support by Fastify", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -616,7 +616,7 @@ asyncTest("Example test", async t => {
       },
     responses: [
       s => {
-        s.status(#201)
+        s.status(201)
         s.data(postSchema)
       },
     ],
@@ -633,7 +633,7 @@ asyncTest("Example test", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         {
           "posts": s.field("posts", S.array(postSchema)),
           "total": s.field("total", S.int),
@@ -691,7 +691,7 @@ asyncTest("Multiple path params", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -748,7 +748,7 @@ asyncTest("Fastify server works with path containing columns", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -763,7 +763,7 @@ asyncTest("Fastify server works with path containing columns", async t => {
       },
     responses: [
       s => {
-        s.status(#200)
+        s.status(200)
         s.data(S.bool)
       },
     ],
@@ -855,10 +855,10 @@ asyncTest("Fails when response is not registered", async t => {
     responses: [],
   })
 
-  await t->Assert.throwsAsync(
-    client.call(getHeight, ()),
+  t->Assert.throws(
+    () => client.call(getHeight, ()),
     ~expectations={
-      message: `[rescript-rest] Server returned unexpected response "200"`,
+      message: `[rescript-rest] At least single response should be registered`,
     },
   )
 })
@@ -877,7 +877,7 @@ asyncTest("Uses default response when explicit status is not defined", async t =
     variables: _ => (),
     responses: [
       s => {
-        s.status(#400)
+        s.status(400)
         s.data(S.literal(false))
       },
       s => {
@@ -903,11 +903,11 @@ asyncTest("Uses 2XX response when explicit status is not defined", async t => {
     variables: _ => (),
     responses: [
       s => {
-        s.status(#400)
+        s.status(400)
         s.data(S.literal(false))
       },
       s => {
-        s.status(#"2XX")
+        // s.status("2XX") FIXME:
         s.data(S.literal(true))
       },
     ],
@@ -930,7 +930,7 @@ asyncTest("Fails with an invalid response data", async t => {
     variables: _ => (),
     responses: [
       s => {
-        s.status(#400)
+        s.status(400)
         s.data(S.literal(false))
       },
       s => {
@@ -1044,4 +1044,28 @@ asyncTest("Fails when rawBody is not a string-based schema", async t => {
       message: `[rescript-rest] Only string-based schemas are allowed in rawBody`,
     },
   )
+})
+
+asyncTest("Fastify works with routes having multiple responses", async t => {
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: Get,
+    variables: _ => (),
+    responses: [
+      s => {
+        s.status(400)
+        s.data(S.literal(false))
+      },
+      s => {
+        s.data(S.literal(true))
+      },
+    ],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(getHeight, async () => {
+    true
+  })
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
+  t->Assert.deepEqual(await client.call(getHeight, ()), true)
 })

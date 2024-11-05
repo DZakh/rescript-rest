@@ -19,7 +19,7 @@ let createGame = Rest.route(() => {
   variables: s => s.body(userSchema),
   responses: [
     s => {
-      s.status(#200)
+      s.status(200)
       s.data(S.bool)
     },
   ],

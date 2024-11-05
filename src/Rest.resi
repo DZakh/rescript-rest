@@ -94,7 +94,7 @@ module Response: {
   }
 
   type s = {
-    status: status => unit,
+    status: int => unit,
     description: string => unit,
     data: 'value. S.t<'value> => 'value,
     field: 'value. (string, S.t<'value>) => 'value,
