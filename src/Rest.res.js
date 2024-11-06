@@ -247,8 +247,7 @@ function params(route) {
                           status: (function (status) {
                               register(responses, status, builder);
                               builder.statuses.push(status);
-                              var schema = S$RescriptSchema.literal(status);
-                              s.f("status", schema);
+                              s.tag("status", status);
                             }),
                           description: (function (d) {
                               builder.description = d;

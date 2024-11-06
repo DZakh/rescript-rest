@@ -1,4 +1,5 @@
 type t
+type plugin<'a>
 
 type abortSignal
 
@@ -57,6 +58,12 @@ external make: unit => t = "default"
 external inject: (t, injectOptions) => promise<injectResponse> = "inject"
 
 @send
+external register: (t, plugin<'a>, 'a) => unit = "register"
+
+@send
+external ready: t => promise<unit> = "ready"
+
+@send
 external listen: (t, listenOptions) => promise<string> = "listen"
 @send
 external listenFirstAvailableLocalPort: t => promise<string> = "listen"
@@ -64,3 +71,14 @@ external listenFirstAvailableLocalPort: t => promise<string> = "listen"
 @send external close: t => promise<unit> = "close"
 
 let route: (t, Rest.route<'request, 'response>, 'request => promise<'response>) => unit
+
+module Swagger: {
+  type openapiOptions = {}
+  type options = {openapi: openapiOptions}
+
+  @module("@fastify/swagger")
+  external plugin: plugin<options> = "default"
+
+  @send
+  external generate: t => Js.Json.t = "swagger"
+}

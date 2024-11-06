@@ -12,6 +12,7 @@ module Promise = {
 }
 
 type t
+type plugin<'a>
 
 type abortSignal
 
@@ -133,13 +134,19 @@ external make: unit => t = "default"
 external inject: (t, injectOptions) => promise<injectResponse> = "inject"
 
 @send
+external register: (t, plugin<'a>, 'a) => unit = "register"
+
+@send
+external ready: t => promise<unit> = "ready"
+
+@send
 external listen: (t, listenOptions) => promise<string> = "listen"
 
 @send
 external listenFirstAvailableLocalPort: t => promise<string> = "listen"
 
 @send
-external register: (t, (t, unknown, unit => unit) => unit) => unit = "register"
+external internalRegister: (t, (t, unknown, unit => unit) => unit) => unit = "register"
 
 type addContentTypeParserOptions = {
   bodyLimit?: int,
@@ -155,10 +162,13 @@ external addContentTypeParser: (
 
 @send external close: t => promise<unit> = "close"
 
+type routeSchema = {description: string}
+
 type routeOptions = {
   method: string,
   url: string,
   handler: (request, reply) => unit,
+  schema?: routeSchema,
 }
 @send
 external route: (t, routeOptions) => unit = "route"
@@ -204,8 +214,11 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     },
   }
 
-  if isRawBody {
-    app->register((app, _, done) => {
+  // Wrap it with register for:
+  // 1. To be able to configure ContentTypeParser specifically for the route
+  // 2. To get access to app with registered plugins eg Swagger
+  app->internalRegister((app, _, done) => {
+    if isRawBody {
       app->addContentTypeParser(
         "application/json",
         {
@@ -215,10 +228,19 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
           done(%raw(`null`), data)
         },
       )
-      app->route(routeOptions)
-      done()
-    })
-  } else {
+    }
     app->route(routeOptions)
-  }
+    done()
+  })
+}
+
+module Swagger = {
+  type openapiOptions = {}
+  type options = {openapi: openapiOptions}
+
+  @module("@fastify/swagger")
+  external plugin: plugin<options> = "default"
+
+  @send
+  external generate: t => Js.Json.t = "swagger"
 }

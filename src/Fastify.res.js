@@ -7,6 +7,7 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function route(app, restRoute, fn) {
   var match = Rest.params(restRoute);
+  var isRawBody = match.isRawBody;
   var variablesSchema = match.variablesSchema;
   var pathItems = match.pathItems;
   var responseSchema = S$RescriptSchema.union(match.responseSchemas);
@@ -49,20 +50,21 @@ function route(app, restRoute, fn) {
     url: url,
     handler: routeOptions_handler
   };
-  if (match.isRawBody) {
-    app.register(function (app, param, done) {
+  app.register(function (app, param, done) {
+        if (isRawBody) {
           app.addContentTypeParser("application/json", {
                 parseAs: "string"
               }, (function (_req, data, done) {
                   done(null, data);
                 }));
-          app.route(routeOptions);
-          done();
-        });
-  } else {
-    app.route(routeOptions);
-  }
+        }
+        app.route(routeOptions);
+        done();
+      });
 }
 
+var Swagger = {};
+
 exports.route = route;
+exports.Swagger = Swagger;
 /* Rest Not a pure module */
