@@ -84,16 +84,21 @@ function route(app, restRoute, fn) {
           schema: routeOptions_schema
         };
         if (app.swagger) {
-          var bodyItem = S$RescriptSchema.classify(variablesSchema).fields.body;
-          if (bodyItem !== undefined) {
-            var jsonSchema = JSONSchema.make(bodyItem.t);
-            if (jsonSchema.TAG === "Ok") {
-              routeSchema["body"] = jsonSchema._0;
-            } else {
-              Js_exn.raiseError("Failed to create JSON-Schema for body of " + definition.method + " " + definition.path + " route. Error: " + jsonSchema._0);
+          var addSchemaFor = function ($$location) {
+            var item = S$RescriptSchema.classify(variablesSchema).fields[$$location];
+            if (item === undefined) {
+              return ;
             }
-          }
-          
+            var jsonSchema = JSONSchema.make(item.t);
+            if (jsonSchema.TAG !== "Ok") {
+              return Js_exn.raiseError("Failed to create JSON-Schema for " + $$location + " of " + definition.method + " " + definition.path + " route. Error: " + jsonSchema._0);
+            }
+            routeSchema[$$location] = jsonSchema._0;
+          };
+          addSchemaFor("body");
+          addSchemaFor("headers");
+          addSchemaFor("params");
+          addSchemaFor("query");
         }
         app.setValidatorCompiler(function (param) {
               return function (param) {

@@ -261,3 +261,68 @@ asyncTest("Route with all meta info and deprecated", async t => {
     }`),
   )
 })
+
+asyncTest("OpenAPI with a complex request having different types", async t => {
+  let app = Fastify.make()
+  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.route(
+    Rest.route(
+      () => {
+        path: "/post/{id}",
+        method: Post,
+        variables: s => {
+          let _ = s.header("x-header", S.literal("foo"))
+          let _ = s.param("id", S.literal(123))
+          let _ = s.query("name", S.literal(true))
+          s.body(S.string)
+        },
+        responses: [
+          s => {
+            s.status(200)
+            s.data(S.bool)
+          },
+        ],
+      },
+    ),
+    async _ => true,
+  )
+
+  t->Assert.deepEqual(
+    await app->getCleanedSwagger,
+    %raw(`{
+      "components": { "schemas": {} },
+      "openapi": "3.0.3",
+      "info": {
+        "title": "@fastify/swagger",
+        "version": "9.2.0"
+      },
+      "paths": {
+        "/post/{id}": {
+          "post": {
+            "parameters": [
+              { "in": 'query',
+                "name": 'name',
+                "required": true,
+                "schema": { "enum": [ true ], "type": 'boolean' } },
+              { "in": 'path',
+                "name": 'id',
+                "required": true,
+                "schema": { "enum": [ 123 ], "type": 'integer' } }, // TODO: Verify whether integer is valid in OpenAPI
+              { "in": 'header',
+                "name": 'x-header',
+                "required": true,
+                "schema": { "enum": [ 'foo' ], "type": 'string' } },
+            ],
+            "requestBody": { "content": { "application/json": { "schema": { "type": "string" } } } },
+            "responses": {
+              "200": {
+                "description": "Default Response",
+                "content": { "application/json": { "schema": { "type": "boolean" } } }
+              }
+            }
+          }
+        }
+      }
+    }`),
+  )
+})

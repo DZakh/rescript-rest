@@ -270,18 +270,25 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
 
     // Add request schemas only when swagger plugin enabled
     if (app->Obj.magic)["swagger"] {
-      let routeSchemaDict = routeSchema->(Obj.magic: routeSchema => dict<JSONSchema.t>)
-      switch (variablesSchema->S.classify->Obj.magic)["fields"]["body"] {
-      | Some(bodyItem: S.item) =>
-        switch bodyItem.schema->JSONSchema.make {
-        | Ok(jsonSchema) => routeSchemaDict->Js.Dict.set("body", jsonSchema)
-        | Error(message) =>
-          Js.Exn.raiseError(
-            `Failed to create JSON-Schema for body of ${(definition.method :> string)} ${definition.path} route. Error: ${message}`,
-          )
+      let addSchemaFor = location =>
+        switch (variablesSchema->S.classify->Obj.magic)["fields"]->Js.Dict.unsafeGet(location) {
+        | Some(item: S.item) =>
+          switch item.schema->JSONSchema.make {
+          | Ok(jsonSchema) =>
+            routeSchema
+            ->(Obj.magic: routeSchema => dict<JSONSchema.t>)
+            ->Js.Dict.set(location, jsonSchema)
+          | Error(message) =>
+            Js.Exn.raiseError(
+              `Failed to create JSON-Schema for ${location} of ${(definition.method :> string)} ${definition.path} route. Error: ${message}`,
+            )
+          }
+        | None => ()
         }
-      | None => ()
-      }
+      addSchemaFor("body")
+      addSchemaFor("headers")
+      addSchemaFor("params")
+      addSchemaFor("query")
     }
 
     // Reset built-in response validator
