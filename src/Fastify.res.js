@@ -2,6 +2,8 @@
 'use strict';
 
 var Rest = require("./Rest.res.js");
+var Js_exn = require("rescript/lib/js/js_exn.js");
+var JSONSchema = require("rescript-json-schema/src/JSONSchema.res.js");
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
@@ -10,12 +12,30 @@ function route(app, restRoute, fn) {
   var isRawBody = match.isRawBody;
   var variablesSchema = match.variablesSchema;
   var pathItems = match.pathItems;
-  var responseSchema = S$RescriptSchema.union(match.responseSchemas);
   var url = "";
   for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
     var pathItem = pathItems[idx];
     url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
   }
+  var responseSchemas = [];
+  var routeSchemaResponses = {};
+  match.responses.forEach(function (r) {
+        responseSchemas.push(r.schema);
+        var status = r.status;
+        var status$1 = status !== undefined ? status : "default";
+        var content = {};
+        var schema = JSONSchema.make(S$RescriptSchema.classify(r.schema).fields.data.t);
+        var tmp;
+        tmp = schema.TAG === "Ok" ? schema._0 : Js_exn.raiseError("Failed to create JSONSchema for response with status " + status$1 + ". Error: " + schema._0);
+        content["application/json"] = {
+          schema: tmp
+        };
+        routeSchemaResponses[status$1] = {
+          description: r.description,
+          content: content
+        };
+      });
+  var responseSchema = S$RescriptSchema.union(responseSchemas);
   var routeOptions_method = match.definition.method;
   var routeOptions_handler = function (request, reply) {
     var variables;
@@ -45,10 +65,14 @@ function route(app, restRoute, fn) {
           reply.send(data.data);
         });
   };
+  var routeOptions_schema = {
+    response: routeSchemaResponses
+  };
   var routeOptions = {
     method: routeOptions_method,
     url: url,
-    handler: routeOptions_handler
+    handler: routeOptions_handler,
+    schema: routeOptions_schema
   };
   app.register(function (app, param, done) {
         if (isRawBody) {

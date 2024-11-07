@@ -165,14 +165,14 @@ module Response = {
 
   type t<'response> = {
     // When it's empty, treat response as a default
-    statuses: array<status>,
+    status: option<int>,
     description: option<string>,
     schema: S.t<'response>,
   }
 
   type builder<'response> = {
     // When it's empty, treat response as a default
-    statuses: array<status>,
+    mutable status?: int,
     mutable description?: string,
     mutable schema?: S.t<'response>,
   }
@@ -243,8 +243,8 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
-  responseSchemas: array<S.t<'response>>,
-  responses: dict<Response.t<'response>>,
+  responses: array<Response.t<'response>>,
+  responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
 }
 
@@ -413,18 +413,16 @@ let params = route => {
         })
       }
 
-      let responses = Js.Dict.empty()
-      let responseSchemas = []
+      let responsesMap = Js.Dict.empty()
+      let responses = []
       routeDefinition.responses->Js.Array2.forEach(r => {
-        let builder: Response.builder<unknown> = {
-          statuses: [],
-        }
+        let builder: Response.builder<unknown> = {}
         let schema = S.object(s => {
           r({
             status: status => {
+              builder.status = Some(status)
               let status = status->(Obj.magic: int => Response.status)
-              responses->Response.register(status->Obj.magic, builder)
-              let _ = builder.statuses->Js.Array2.push(status->Obj.magic)
+              responsesMap->Response.register(status, builder)
               s.tag("status", status)
             },
             description: d => builder.description = Some(d),
@@ -439,23 +437,25 @@ let params = route => {
             },
           })
         })
-        if builder.statuses->Js.Array2.length === 0 {
-          responses->Response.register(#default, builder)
+        if builder.status === None {
+          responsesMap->Response.register(#default, builder)
         }
-        responseSchemas->Js.Array2.push(schema)->ignore
         builder.schema = Option.unsafeSome(schema)
+        responses
+        ->Js.Array2.push(builder->(Obj.magic: Response.builder<unknown> => Response.t<unknown>))
+        ->ignore
       })
 
-      if responseSchemas->Js.Array2.length === 0 {
+      if responses->Js.Array2.length === 0 {
         panic("At least single response should be registered")
       }
 
       let params = {
         definition: routeDefinition,
         variablesSchema,
-        responseSchemas,
-        pathItems,
         responses,
+        pathItems,
+        responsesMap,
         isRawBody,
       }
       (route->Obj.magic)["_rest"] = params
@@ -581,7 +581,7 @@ let fetch = (
   let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
   let variables = variables->(Obj.magic: variables => unknown)
 
-  let {definition, variablesSchema, responses, pathItems, isRawBody} = route->params
+  let {definition, variablesSchema, responsesMap, pathItems, isRawBody} = route->params
 
   let data = variables->S.serializeToUnknownOrRaiseWith(variablesSchema)->Obj.magic
 
@@ -607,7 +607,7 @@ let fetch = (
     ),
     method: (definition.method :> string),
   })->Promise.thenResolve(fetcherResponse => {
-    switch responses->Response.find(fetcherResponse.status) {
+    switch responsesMap->Response.find(fetcherResponse.status) {
     | None =>
       let error = ref(`Unexpected response status "${fetcherResponse.status->Js.Int.toString}"`)
       if (

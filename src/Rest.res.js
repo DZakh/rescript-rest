@@ -236,17 +236,15 @@ function params(route) {
             return "!" + inputVar;
           });
       });
-  var responses = {};
-  var responseSchemas = [];
+  var responsesMap = {};
+  var responses = [];
   routeDefinition.responses.forEach(function (r) {
-        var builder = {
-          statuses: []
-        };
+        var builder = {};
         var schema = S$RescriptSchema.object(function (s) {
               return r({
                           status: (function (status) {
-                              register(responses, status, builder);
-                              builder.statuses.push(status);
+                              builder.status = status;
+                              register(responsesMap, status, builder);
                               s.tag("status", status);
                             }),
                           description: (function (d) {
@@ -263,21 +261,21 @@ function params(route) {
                             })
                         });
             });
-        if (builder.statuses.length === 0) {
-          register(responses, "default", builder);
+        if (builder.status === undefined) {
+          register(responsesMap, "default", builder);
         }
-        responseSchemas.push(schema);
         builder.schema = schema;
+        responses.push(builder);
       });
-  if (responseSchemas.length === 0) {
+  if (responses.length === 0) {
     throw new Error("[rescript-rest] At least single response should be registered");
   }
   var params$2 = {
     definition: routeDefinition,
     pathItems: pathItems,
     variablesSchema: variablesSchema,
-    responseSchemas: responseSchemas,
     responses: responses,
+    responsesMap: responsesMap,
     isRawBody: isRawBody
   };
   route._rest = params$2;
@@ -351,7 +349,7 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var match = params(route);
-  var responses = match.responses;
+  var responsesMap = match.responsesMap;
   var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
   if (data.body !== (void 0)) {
     if (!match.isRawBody) {
@@ -369,7 +367,7 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
                 path: getCompletePath(baseUrl, match.pathItems, data.query, data.params, jsonQuery)
               }).then(function (fetcherResponse) {
               var responseStatus = fetcherResponse.status;
-              var response = responses[responseStatus] || responses[(responseStatus / 100 | 0) + "XX"] || responses["default"];
+              var response = responsesMap[responseStatus] || responsesMap[(responseStatus / 100 | 0) + "XX"] || responsesMap["default"];
               if (response !== undefined) {
                 return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
               }

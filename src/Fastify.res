@@ -162,7 +162,15 @@ external addContentTypeParser: (
 
 @send external close: t => promise<unit> = "close"
 
-type routeSchema = {description: string}
+type routeResponseContent = {schema?: JSONSchema.t}
+type routeResponse = {
+  description?: string,
+  content: dict<routeResponseContent>,
+}
+type routeSchema = {
+  description?: string,
+  response?: dict<routeResponse>,
+}
 
 type routeOptions = {
   method: string,
@@ -174,9 +182,7 @@ type routeOptions = {
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
-  let {definition, variablesSchema, responseSchemas, pathItems, isRawBody} = restRoute->Rest.params
-
-  let responseSchema = S.union(responseSchemas)
+  let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
 
   let url = ref("")
   for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -186,6 +192,39 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     | Param({name}) => url := url.contents ++ ":" ++ name
     }
   }
+
+  let responseSchemas = []
+  let routeSchemaResponses: dict<routeResponse> = Js.Dict.empty()
+  responses->Js.Array2.forEach(r => {
+    responseSchemas->Js.Array2.push(r.schema)->ignore
+    let status = switch r.status {
+    | Some(status) => status->(Obj.magic: int => string)
+    | None => "default"
+    }
+    let content = Js.Dict.empty()
+    content->Js.Dict.set(
+      "application/json",
+      {
+        // FIXME: Test without the data
+        schema: switch (r.schema->S.classify->Obj.magic)["fields"]["data"]["t"]->JSONSchema.make {
+        | Ok(schema) => schema
+        | Error(message) =>
+          Js.Exn.raiseError(
+            `Failed to create JSONSchema for response with status ${status}. Error: ${message}`,
+          )
+        },
+      },
+    )
+    routeSchemaResponses->Js.Dict.set(
+      status,
+      {
+        description: ?r.description,
+        content,
+      },
+    )
+  })
+
+  let responseSchema = S.union(responseSchemas)
 
   let routeOptions = {
     method: (definition.method :> string),
@@ -211,6 +250,9 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
         reply.status(%raw(`data.status || 200`))
         reply.send(data["data"])
       })
+    },
+    schema: {
+      response: routeSchemaResponses,
     },
   }
 

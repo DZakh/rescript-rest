@@ -22,24 +22,32 @@
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "scripts": {
+    "coverage": "c8 --reporter=lcov npm test",
+    "integration": "node ./__tests__/IntegrationTest.res.js",
     "res": "rescript -w",
     "res:build": "rescript",
     "res:clean": "rescript clean",
-    "test": "ava",
-    "integration": "node ./__tests__/IntegrationTest.res.js",
-    "coverage": "c8 --reporter=lcov npm test"
+    "test": "ava"
+  },
+  "ava": {
+    "files": [
+      "__tests__/**/*_test.res.js"
+    ]
+  },
+  "dependencies": {
+    "rescript-json-schema": "^6.1.0"
   },
   "devDependencies": {
     "@dzakh/rescript-ava": "3.0.0",
     "@fastify/swagger": "9.2.0",
     "ava": "5.2.x",
     "c8": "10.1.2",
-    "fastify": "5.0.0",
+    "fastify": "5.1.0",
     "rescript": "11.1.4",
     "rescript-schema": "8.1.0"
   },
   "peerDependencies": {
-    "fastify": "4.x || 5.x",
+    "fastify": "5.x",
     "rescript": "11.x",
     "rescript-schema": ">=7 <=8.1"
   },
@@ -47,10 +55,5 @@
     "fastify": {
       "optional": true
     }
-  },
-  "ava": {
-    "files": [
-      "__tests__/**/*_test.res.js"
-    ]
   }
 }

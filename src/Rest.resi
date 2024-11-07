@@ -88,7 +88,7 @@ module Response: {
 
   type t<'response> = {
     // When it's empty, treat response as a default
-    statuses: array<status>,
+    status: option<int>,
     description: option<string>,
     schema: S.t<'response>,
   }
@@ -144,8 +144,8 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
-  responseSchemas: array<S.t<'response>>,
-  responses: dict<Response.t<'response>>,
+  responses: array<Response.t<'response>>,
+  responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
 }
 
