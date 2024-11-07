@@ -160,6 +160,9 @@ external addContentTypeParser: (
   (request, unknown, (unknown, unknown) => unit) => unit,
 ) => unit = "addContentTypeParser"
 
+@send
+external setValidatorCompiler: (t, unknown => unknown => bool) => unit = "setValidatorCompiler"
+
 @send external close: t => promise<unit> = "close"
 
 type routeResponseContent = {schema?: JSONSchema.t}
@@ -169,6 +172,8 @@ type routeResponse = {
 }
 type routeSchema = {
   description?: string,
+  summary?: string,
+  deprecated?: bool,
   response?: dict<routeResponse>,
 }
 
@@ -182,83 +187,106 @@ type routeOptions = {
 external route: (t, routeOptions) => unit = "route"
 
 let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
-  let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
-
-  let url = ref("")
-  for idx in 0 to pathItems->Js.Array2.length - 1 {
-    let pathItem = pathItems->Js.Array2.unsafe_get(idx)
-    switch pathItem {
-    | Static(static) => url := url.contents ++ static // FIXME: Escape : with ::
-    | Param({name}) => url := url.contents ++ ":" ++ name
-    }
-  }
-
-  let responseSchemas = []
-  let routeSchemaResponses: dict<routeResponse> = Js.Dict.empty()
-  responses->Js.Array2.forEach(r => {
-    responseSchemas->Js.Array2.push(r.schema)->ignore
-    let status = switch r.status {
-    | Some(status) => status->(Obj.magic: int => string)
-    | None => "default"
-    }
-    let content = Js.Dict.empty()
-    content->Js.Dict.set(
-      "application/json",
-      {
-        schema: switch r.dataSchema->JSONSchema.make {
-        | Ok(schema) => schema
-        | Error(message) =>
-          Js.Exn.raiseError(
-            `Failed to create JSONSchema for response with status ${status}. Error: ${message}`,
-          )
-        },
-      },
-    )
-    routeSchemaResponses->Js.Dict.set(
-      status,
-      {
-        description: ?r.description,
-        content,
-      },
-    )
-  })
-
-  let responseSchema = S.union(responseSchemas)
-
-  let routeOptions = {
-    method: (definition.method :> string),
-    url: url.contents,
-    handler: (request, reply) => {
-      let variables = try request->S.parseAnyOrRaiseWith(variablesSchema) catch {
-      | S.Raised(error) => {
-          reply.status(400)
-          reply.send({
-            "statusCode": 400,
-            "error": "Bad Request",
-            "message": error->S.Error.message,
-          })
-          raise(%raw(`0`))
-        }
-      }
-      let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
-        let data: {..} = handlerReturn->S.serializeToUnknownOrRaiseWith(responseSchema)->Obj.magic
-        let headers = data["headers"]
-        if headers->Obj.magic {
-          reply.headers(headers)
-        }
-        reply.status(%raw(`data.status || 200`))
-        reply.send(data["data"])
-      })
-    },
-    schema: {
-      response: routeSchemaResponses,
-    },
-  }
-
   // Wrap it with register for:
   // 1. To be able to configure ContentTypeParser specifically for the route
   // 2. To get access to app with registered plugins eg Swagger
   app->internalRegister((app, _, done) => {
+    let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
+
+    let url = ref("")
+    for idx in 0 to pathItems->Js.Array2.length - 1 {
+      let pathItem = pathItems->Js.Array2.unsafe_get(idx)
+      switch pathItem {
+      | Static(static) => url := url.contents ++ static // FIXME: Escape : with ::
+      | Param({name}) => url := url.contents ++ ":" ++ name
+      }
+    }
+
+    let responseSchemas = []
+    let routeSchemaResponses: dict<routeResponse> = Js.Dict.empty()
+    responses->Js.Array2.forEach(r => {
+      responseSchemas->Js.Array2.push(r.schema)->ignore
+      let status = switch r.status {
+      | Some(status) => status->(Obj.magic: int => string)
+      | None => "default"
+      }
+      let content = Js.Dict.empty()
+      content->Js.Dict.set(
+        "application/json",
+        {
+          schema: switch r.dataSchema->JSONSchema.make {
+          | Ok(jsonSchema) => jsonSchema
+          | Error(message) =>
+            Js.Exn.raiseError(
+              `Failed to create JSON-Schema for response with status ${status}. Error: ${message}`,
+            )
+          },
+        },
+      )
+      routeSchemaResponses->Js.Dict.set(
+        status,
+        {
+          description: ?r.description,
+          content,
+        },
+      )
+    })
+
+    let responseSchema = S.union(responseSchemas)
+
+    let routeSchema = {
+      description: ?definition.description,
+      summary: ?definition.summary,
+      deprecated: ?definition.deprecated,
+      response: routeSchemaResponses,
+    }
+    let routeOptions = {
+      method: (definition.method :> string),
+      url: url.contents,
+      handler: (request, reply) => {
+        let variables = try request->S.parseAnyOrRaiseWith(variablesSchema) catch {
+        | S.Raised(error) => {
+            reply.status(400)
+            reply.send({
+              "statusCode": 400,
+              "error": "Bad Request",
+              "message": error->S.Error.message,
+            })
+            raise(%raw(`0`))
+          }
+        }
+        let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
+          let data: {..} = handlerReturn->S.serializeToUnknownOrRaiseWith(responseSchema)->Obj.magic
+          let headers = data["headers"]
+          if headers->Obj.magic {
+            reply.headers(headers)
+          }
+          reply.status(%raw(`data.status || 200`))
+          reply.send(data["data"])
+        })
+      },
+      schema: routeSchema,
+    }
+
+    // Add request schemas only when swagger plugin enabled
+    if (app->Obj.magic)["swagger"] {
+      let routeSchemaDict = routeSchema->(Obj.magic: routeSchema => dict<JSONSchema.t>)
+      switch (variablesSchema->S.classify->Obj.magic)["fields"]["body"] {
+      | Some(bodyItem: S.item) =>
+        switch bodyItem.schema->JSONSchema.make {
+        | Ok(jsonSchema) => routeSchemaDict->Js.Dict.set("body", jsonSchema)
+        | Error(message) =>
+          Js.Exn.raiseError(
+            `Failed to create JSON-Schema for body of ${(definition.method :> string)} ${definition.path} route. Error: ${message}`,
+          )
+        }
+      | None => ()
+      }
+    }
+
+    // Reset built-in response validator
+    app->setValidatorCompiler(_ => _ => true)
+
     if isRawBody {
       app->addContentTypeParser(
         "application/json",
@@ -276,8 +304,8 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
 }
 
 module Swagger = {
-  type openapiOptions = {}
-  type options = {openapi: openapiOptions}
+  type openapi = {}
+  type options = {openapi?: openapi}
 
   @module("@fastify/swagger")
   external plugin: plugin<options> = "default"

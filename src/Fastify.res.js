@@ -8,74 +8,99 @@ var S$RescriptSchema = require("rescript-schema/src/S.res.js");
 var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function route(app, restRoute, fn) {
-  var match = Rest.params(restRoute);
-  var isRawBody = match.isRawBody;
-  var variablesSchema = match.variablesSchema;
-  var pathItems = match.pathItems;
-  var url = "";
-  for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
-    var pathItem = pathItems[idx];
-    url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
-  }
-  var responseSchemas = [];
-  var routeSchemaResponses = {};
-  match.responses.forEach(function (r) {
-        responseSchemas.push(r.schema);
-        var status = r.status;
-        var status$1 = status !== undefined ? status : "default";
-        var content = {};
-        var schema = JSONSchema.make(r.dataSchema);
-        var tmp;
-        tmp = schema.TAG === "Ok" ? schema._0 : Js_exn.raiseError("Failed to create JSONSchema for response with status " + status$1 + ". Error: " + schema._0);
-        content["application/json"] = {
-          schema: tmp
-        };
-        routeSchemaResponses[status$1] = {
-          description: r.description,
-          content: content
-        };
-      });
-  var responseSchema = S$RescriptSchema.union(responseSchemas);
-  var routeOptions_method = match.definition.method;
-  var routeOptions_handler = function (request, reply) {
-    var variables;
-    try {
-      variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
-    }
-    catch (raw_error){
-      var error = Caml_js_exceptions.internalToOCamlException(raw_error);
-      if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
-        reply.status(400);
-        reply.send({
-              statusCode: 400,
-              error: "Bad Request",
-              message: S$RescriptSchema.$$Error.message(error._1)
-            });
-        throw 0;
-      }
-      throw error;
-    }
-    fn(variables).then(function (handlerReturn) {
-          var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseSchema);
-          var headers = data.headers;
-          if (headers) {
-            reply.headers(headers);
-          }
-          reply.status((data.status || 200));
-          reply.send(data.data);
-        });
-  };
-  var routeOptions_schema = {
-    response: routeSchemaResponses
-  };
-  var routeOptions = {
-    method: routeOptions_method,
-    url: url,
-    handler: routeOptions_handler,
-    schema: routeOptions_schema
-  };
   app.register(function (app, param, done) {
-        if (isRawBody) {
+        var match = Rest.params(restRoute);
+        var variablesSchema = match.variablesSchema;
+        var pathItems = match.pathItems;
+        var definition = match.definition;
+        var url = "";
+        for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
+          var pathItem = pathItems[idx];
+          url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
+        }
+        var responseSchemas = [];
+        var routeSchemaResponses = {};
+        match.responses.forEach(function (r) {
+              responseSchemas.push(r.schema);
+              var status = r.status;
+              var status$1 = status !== undefined ? status : "default";
+              var content = {};
+              var jsonSchema = JSONSchema.make(r.dataSchema);
+              var tmp;
+              tmp = jsonSchema.TAG === "Ok" ? jsonSchema._0 : Js_exn.raiseError("Failed to create JSON-Schema for response with status " + status$1 + ". Error: " + jsonSchema._0);
+              content["application/json"] = {
+                schema: tmp
+              };
+              routeSchemaResponses[status$1] = {
+                description: r.description,
+                content: content
+              };
+            });
+        var responseSchema = S$RescriptSchema.union(responseSchemas);
+        var routeSchema_description = definition.description;
+        var routeSchema_summary = definition.summary;
+        var routeSchema_deprecated = definition.deprecated;
+        var routeSchema_response = routeSchemaResponses;
+        var routeSchema = {
+          description: routeSchema_description,
+          summary: routeSchema_summary,
+          deprecated: routeSchema_deprecated,
+          response: routeSchema_response
+        };
+        var routeOptions_method = definition.method;
+        var routeOptions_handler = function (request, reply) {
+          var variables;
+          try {
+            variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
+          }
+          catch (raw_error){
+            var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+            if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
+              reply.status(400);
+              reply.send({
+                    statusCode: 400,
+                    error: "Bad Request",
+                    message: S$RescriptSchema.$$Error.message(error._1)
+                  });
+              throw 0;
+            }
+            throw error;
+          }
+          fn(variables).then(function (handlerReturn) {
+                var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseSchema);
+                var headers = data.headers;
+                if (headers) {
+                  reply.headers(headers);
+                }
+                reply.status((data.status || 200));
+                reply.send(data.data);
+              });
+        };
+        var routeOptions_schema = routeSchema;
+        var routeOptions = {
+          method: routeOptions_method,
+          url: url,
+          handler: routeOptions_handler,
+          schema: routeOptions_schema
+        };
+        if (app.swagger) {
+          var bodyItem = S$RescriptSchema.classify(variablesSchema).fields.body;
+          if (bodyItem !== undefined) {
+            var jsonSchema = JSONSchema.make(bodyItem.t);
+            if (jsonSchema.TAG === "Ok") {
+              routeSchema["body"] = jsonSchema._0;
+            } else {
+              Js_exn.raiseError("Failed to create JSON-Schema for body of " + definition.method + " " + definition.path + " route. Error: " + jsonSchema._0);
+            }
+          }
+          
+        }
+        app.setValidatorCompiler(function (param) {
+              return function (param) {
+                return true;
+              };
+            });
+        if (match.isRawBody) {
           app.addContentTypeParser("application/json", {
                 parseAs: "string"
               }, (function (_req, data, done) {

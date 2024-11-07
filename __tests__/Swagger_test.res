@@ -1,6 +1,12 @@
 open Ava
 open RescriptSchema
 
+let getCleanedSwagger = async app => {
+  await app->Fastify.ready
+  let stripSymbols = %raw(`structuredClone`)
+  stripSymbols(app->Fastify.Swagger.generate)
+}
+
 asyncTest("OpenAPI with a simple get request using rawBody", async t => {
   let app = Fastify.make()
   app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
@@ -21,10 +27,8 @@ asyncTest("OpenAPI with a simple get request using rawBody", async t => {
     async _ => true,
   )
 
-  await app->Fastify.ready
-
   t->Assert.deepEqual(
-    app->Fastify.Swagger.generate,
+    await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
       "openapi": "3.0.3",
@@ -35,6 +39,7 @@ asyncTest("OpenAPI with a simple get request using rawBody", async t => {
       "paths": {
         "/": {
           "post": {
+            "requestBody": { "content": { "application/json": { "schema": { "type": "string" } } } },
             "responses": {
               "200": {
                 "description": "Default Response",
@@ -68,10 +73,8 @@ asyncTest("OpenAPI with a simple post request using body", async t => {
     async _ => true,
   )
 
-  await app->Fastify.ready
-
   t->Assert.deepEqual(
-    app->Fastify.Swagger.generate,
+    await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
       "openapi": "3.0.3",
@@ -82,6 +85,7 @@ asyncTest("OpenAPI with a simple post request using body", async t => {
       "paths": {
         "/": {
           "post": {
+            "requestBody": { "content": { "application/json": { "schema": { "type": "string" } } } },
             "responses": {
               "200": {
                 "description": "Default Response",
@@ -128,10 +132,8 @@ asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
     async _ => true,
   )
 
-  await app->Fastify.ready
-
   t->Assert.deepEqual(
-    app->Fastify.Swagger.generate,
+    await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
       "openapi": "3.0.3",
@@ -142,6 +144,7 @@ asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
       "paths": {
         "/": {
           "post": {
+            "requestBody": { "content": { "application/json": { "schema": { "type": "string" } } } },
             "responses": {
               "200": {
                 "description": "OK",
@@ -187,10 +190,8 @@ asyncTest("OpenAPI with response not returning any data", async t => {
     async _ => (),
   )
 
-  await app->Fastify.ready
-
   t->Assert.deepEqual(
-    app->Fastify.Swagger.generate,
+    await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
       "openapi": "3.0.3",
@@ -201,8 +202,55 @@ asyncTest("OpenAPI with response not returning any data", async t => {
       "paths": {
         "/": {
           "post": {
+            "requestBody": { "content": { "application/json": { "schema": { "type": "string" } } } },
             "responses": {
               "200": {
+                "description": "Default Response",
+                "content": { "application/json": { "schema": { "type": "null" } } }
+              }
+            }
+          }
+        }
+      }
+    }`),
+  )
+})
+
+asyncTest("Route with all meta info and deprecated", async t => {
+  let app = Fastify.make()
+  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.route(
+    Rest.route(
+      () => {
+        description: "This is a description",
+        summary: "This is a summary",
+        deprecated: true,
+        path: "/",
+        method: Post,
+        variables: _ => (),
+        responses: [_ => ()],
+      },
+    ),
+    async _ => (),
+  )
+
+  t->Assert.deepEqual(
+    await app->getCleanedSwagger,
+    %raw(`{
+      "components": { "schemas": {} },
+      "openapi": "3.0.3",
+      "info": {
+        "title": "@fastify/swagger",
+        "version": "9.2.0"
+      },
+      "paths": {
+        "/": {
+          "post": {
+            "deprecated": true,
+            "summary": "This is a summary",
+            "description": "This is a description",
+            "responses": {
+              "default": {
                 "description": "Default Response",
                 "content": { "application/json": { "schema": { "type": "null" } } }
               }

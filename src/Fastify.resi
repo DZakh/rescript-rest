@@ -73,8 +73,8 @@ external listenFirstAvailableLocalPort: t => promise<string> = "listen"
 let route: (t, Rest.route<'request, 'response>, 'request => promise<'response>) => unit
 
 module Swagger: {
-  type openapiOptions = {}
-  type options = {openapi: openapiOptions}
+  type openapi = {}
+  type options = {openapi?: openapi}
 
   @module("@fastify/swagger")
   external plugin: plugin<options> = "default"
