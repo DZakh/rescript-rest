@@ -167,6 +167,8 @@ module Response = {
     // When it's empty, treat response as a default
     status: option<int>,
     description: option<string>,
+    dataSchema: S.t<unknown>,
+    emptyData: bool,
     schema: S.t<'response>,
   }
 
@@ -174,6 +176,8 @@ module Response = {
     // When it's empty, treat response as a default
     mutable status?: int,
     mutable description?: string,
+    mutable dataSchema?: S.t<unknown>,
+    mutable emptyData: bool,
     mutable schema?: S.t<'response>,
   }
 
@@ -416,9 +420,11 @@ let params = route => {
       let responsesMap = Js.Dict.empty()
       let responses = []
       routeDefinition.responses->Js.Array2.forEach(r => {
-        let builder: Response.builder<unknown> = {}
+        let builder: Response.builder<unknown> = {
+          emptyData: true,
+        }
         let schema = S.object(s => {
-          r({
+          let definition = r({
             status: status => {
               builder.status = Some(status)
               let status = status->(Obj.magic: int => Response.status)
@@ -427,19 +433,26 @@ let params = route => {
             },
             description: d => builder.description = Some(d),
             field: (fieldName, schema) => {
+              builder.emptyData = false
               s.nestedField("data", fieldName, schema)
             },
             data: schema => {
+              builder.emptyData = false
               s.field("data", schema)
             },
             header: (fieldName, schema) => {
               s.nestedField("headers", fieldName->Js.String2.toLowerCase, coerceSchema(schema))
             },
           })
+          if builder.emptyData {
+            s.tag("data", %raw(`null`))
+          }
+          definition
         })
         if builder.status === None {
           responsesMap->Response.register(#default, builder)
         }
+        builder.dataSchema = (schema->S.classify->Obj.magic)["fields"]["data"]["t"]
         builder.schema = Option.unsafeSome(schema)
         responses
         ->Js.Array2.push(builder->(Obj.magic: Response.builder<unknown> => Response.t<unknown>))

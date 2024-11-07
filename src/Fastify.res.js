@@ -24,7 +24,7 @@ function route(app, restRoute, fn) {
         var status = r.status;
         var status$1 = status !== undefined ? status : "default";
         var content = {};
-        var schema = JSONSchema.make(S$RescriptSchema.classify(r.schema).fields.data.t);
+        var schema = JSONSchema.make(r.dataSchema);
         var tmp;
         tmp = schema.TAG === "Ok" ? schema._0 : Js_exn.raiseError("Failed to create JSONSchema for response with status " + status$1 + ". Error: " + schema._0);
         content["application/json"] = {

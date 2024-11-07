@@ -1069,3 +1069,17 @@ asyncTest("Fastify works with routes having multiple responses", async t => {
   let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
   t->Assert.deepEqual(await client.call(getHeight, ()), true)
 })
+
+asyncTest("Sends response without a data", async t => {
+  let getHeight = Rest.route(() => {
+    path: "/height",
+    method: Get,
+    variables: _ => (),
+    responses: [_ => ()],
+  })
+
+  let app = Fastify.make()
+  app->Fastify.route(getHeight, async () => ())
+  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
+  t->Assert.deepEqual(await client.call(getHeight, ()), ())
+})

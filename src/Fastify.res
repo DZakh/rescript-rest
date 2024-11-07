@@ -205,8 +205,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     content->Js.Dict.set(
       "application/json",
       {
-        // FIXME: Test without the data
-        schema: switch (r.schema->S.classify->Obj.magic)["fields"]["data"]["t"]->JSONSchema.make {
+        schema: switch r.dataSchema->JSONSchema.make {
         | Ok(schema) => schema
         | Error(message) =>
           Js.Exn.raiseError(

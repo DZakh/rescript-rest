@@ -90,6 +90,8 @@ module Response: {
     // When it's empty, treat response as a default
     status: option<int>,
     description: option<string>,
+    dataSchema: S.t<unknown>,
+    emptyData: bool,
     schema: S.t<'response>,
   }
 

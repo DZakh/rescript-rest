@@ -239,31 +239,40 @@ function params(route) {
   var responsesMap = {};
   var responses = [];
   routeDefinition.responses.forEach(function (r) {
-        var builder = {};
+        var builder = {
+          emptyData: true
+        };
         var schema = S$RescriptSchema.object(function (s) {
-              return r({
-                          status: (function (status) {
-                              builder.status = status;
-                              register(responsesMap, status, builder);
-                              s.tag("status", status);
-                            }),
-                          description: (function (d) {
-                              builder.description = d;
-                            }),
-                          data: (function (schema) {
-                              return s.f("data", schema);
-                            }),
-                          field: (function (fieldName, schema) {
-                              return s.nestedField("data", fieldName, schema);
-                            }),
-                          header: (function (fieldName, schema) {
-                              return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
-                            })
-                        });
+              var definition = r({
+                    status: (function (status) {
+                        builder.status = status;
+                        register(responsesMap, status, builder);
+                        s.tag("status", status);
+                      }),
+                    description: (function (d) {
+                        builder.description = d;
+                      }),
+                    data: (function (schema) {
+                        builder.emptyData = false;
+                        return s.f("data", schema);
+                      }),
+                    field: (function (fieldName, schema) {
+                        builder.emptyData = false;
+                        return s.nestedField("data", fieldName, schema);
+                      }),
+                    header: (function (fieldName, schema) {
+                        return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
+                      })
+                  });
+              if (builder.emptyData) {
+                s.tag("data", null);
+              }
+              return definition;
             });
         if (builder.status === undefined) {
           register(responsesMap, "default", builder);
         }
+        builder.dataSchema = S$RescriptSchema.classify(schema).fields.data.t;
         builder.schema = schema;
         responses.push(builder);
       });
