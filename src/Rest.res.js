@@ -229,7 +229,9 @@ function params(route) {
                   });
       });
   variablesSchema.f = undefined;
-  var items = variablesSchema.r.items;
+  var tmp = S$RescriptSchema.classify(variablesSchema);
+  tmp.unknownKeys = "Strip";
+  var items = S$RescriptSchema.classify(variablesSchema).items;
   items.forEach(function (item) {
         var schema = item.t;
         schema.f = (function (_b, inputVar) {
@@ -272,6 +274,8 @@ function params(route) {
         if (builder.status === undefined) {
           register(responsesMap, "default", builder);
         }
+        var tmp = S$RescriptSchema.classify(schema);
+        tmp.unknownKeys = "Strip";
         builder.dataSchema = S$RescriptSchema.classify(schema).fields.data.t;
         builder.schema = schema;
         responses.push(builder);

@@ -1,6 +1,10 @@
 open Ava
 open RescriptSchema
 
+S.setGlobalConfig({
+  defaultUnknownKeys: Strict,
+})
+
 let inject = async (app: Fastify.t, args: Rest.ApiFetcher.args): Rest.ApiFetcher.response => {
   let response = await app->Fastify.inject({
     url: args.path,

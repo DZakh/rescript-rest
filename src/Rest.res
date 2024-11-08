@@ -409,7 +409,8 @@ let params = route => {
       {
         // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
         (variablesSchema->Obj.magic)["f"] = ()
-        let items: array<S.item> = (variablesSchema->Obj.magic)["r"]["items"]
+        (variablesSchema->S.classify->Obj.magic)["unknownKeys"] = S.Strip
+        let items: array<S.item> = (variablesSchema->S.classify->Obj.magic)["items"]
         items->Js.Array2.forEach(item => {
           let schema = item.schema
           // Remove ${inputVar}.constructor!==Object check
@@ -452,6 +453,7 @@ let params = route => {
         if builder.status === None {
           responsesMap->Response.register(#default, builder)
         }
+        (schema->S.classify->Obj.magic)["unknownKeys"] = S.Strip
         builder.dataSchema = (schema->S.classify->Obj.magic)["fields"]["data"]["t"]
         builder.schema = Option.unsafeSome(schema)
         responses
