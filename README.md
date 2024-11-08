@@ -340,9 +340,51 @@ let _ = app->Fastify.listen({port: 3000})
 
 #### Known Limitations
 
-- Currently supports routes only with a single response definition
 - Doesn't support array/object-like query params
 - Has issues with paths with `:`
+
+### OpenAPI Documentation with Fastify & Scalar
+
+ReScript Rest ships with a plugin for [Fastify](https://github.com/fastify/fastify-swagger) to generate OpenAPI documentation for your API. Additionally, it also supports [Scalar](https://github.com/scalar/scalar/blob/main/packages/fastify-api-reference/README.md) which is a free, open-source, self-hosted API documentation tool.
+
+To start, you need to additionally install `@fastify/swagger` which is used for OpenAPI generation. And if you want to host your documentation on a server, install `@scalar/fastify-api-reference` which is a nice and free OpenAPI UI:
+
+```sh
+npm install @fastify/swagger @scalar/fastify-api-reference
+```
+
+Then let's connect the plugins to our Fastify app:
+
+```rescript
+let app = Fastify.make()
+
+// Set up @fastify/swagger
+app->Fastify.register(
+  Fastify.Swagger.plugin,
+  {
+    openapi: {
+      openapi: "3.1.0",
+      info: {
+        title: "Test API",
+        version: "1.0.0",
+      },
+    },
+  },
+)
+
+app->Fastify.route(Contract.getPosts, async variables => {
+  // Implementation where return type is promise<'response>
+})
+
+// Render your OpenAPI reference with Scalar
+app->Fastify.register(Fastify.Scalar.plugin, {routePrefix: "/reference"})
+
+let _ = await app->Fastify.listen({port: 3000})
+
+Console.log("OpenAPI reference: http://localhost:3000/reference")
+```
+
+Also, you can use the `Fastify.Swagger.generate` function to get the OpenAPI JSON.
 
 ## Planned Features
 
@@ -352,7 +394,7 @@ let _ = app->Fastify.listen({port: 3000})
 - [x] Implement type-safe response
 - [ ] Support custom fetch options
 - [ ] Support non-json body
-- [ ] Generate OpenAPI from Contract
+- [x] Generate OpenAPI from Contract
 - [ ] Generate Contract from OpenAPI
 - [x] Server implementation with Fastify
 - [ ] NextJs integration

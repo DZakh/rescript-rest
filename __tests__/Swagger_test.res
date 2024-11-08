@@ -9,7 +9,18 @@ let getCleanedSwagger = async app => {
 
 asyncTest("OpenAPI with a simple get request using rawBody", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -31,10 +42,10 @@ asyncTest("OpenAPI with a simple get request using rawBody", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/": {
@@ -55,7 +66,18 @@ asyncTest("OpenAPI with a simple get request using rawBody", async t => {
 
 asyncTest("OpenAPI with a simple post request using body", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -77,10 +99,10 @@ asyncTest("OpenAPI with a simple post request using body", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/": {
@@ -101,7 +123,18 @@ asyncTest("OpenAPI with a simple post request using body", async t => {
 
 asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -136,10 +169,10 @@ asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/": {
@@ -172,7 +205,18 @@ asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
 
 asyncTest("OpenAPI with response not returning any data", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -194,10 +238,10 @@ asyncTest("OpenAPI with response not returning any data", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/": {
@@ -218,7 +262,18 @@ asyncTest("OpenAPI with response not returning any data", async t => {
 
 asyncTest("Route with all meta info and deprecated", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -238,10 +293,10 @@ asyncTest("Route with all meta info and deprecated", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/": {
@@ -264,7 +319,18 @@ asyncTest("Route with all meta info and deprecated", async t => {
 
 asyncTest("OpenAPI with a complex request having different types", async t => {
   let app = Fastify.make()
-  app->Fastify.register(Fastify.Swagger.plugin, {openapi: {}})
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
   app->Fastify.route(
     Rest.route(
       () => {
@@ -291,10 +357,10 @@ asyncTest("OpenAPI with a complex request having different types", async t => {
     await app->getCleanedSwagger,
     %raw(`{
       "components": { "schemas": {} },
-      "openapi": "3.0.3",
+      "openapi": "3.1.0",
       "info": {
-        "title": "@fastify/swagger",
-        "version": "9.2.0"
+        "title": "Test API",
+        "version": "1.0.0"
       },
       "paths": {
         "/post/{id}": {

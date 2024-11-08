@@ -27,21 +27,33 @@ let main = async () => {
   })
 
   let app = Fastify.make()
+  app->Fastify.register(
+    Fastify.Swagger.plugin,
+    {
+      openapi: {
+        openapi: "3.1.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0",
+        },
+      },
+    },
+  )
 
   app->Fastify.route(createGame, async _variables => {
     true
   })
 
-  let _ =
-    app
-    ->Fastify.listen({port: 3000})
-    ->Promise.thenResolve(address => {
-      let client = Rest.client(~baseUrl=address)
+  app->Fastify.register(Fastify.Scalar.plugin, {routePrefix: "/reference"})
 
-      let _ = client.call(createGame, %raw(`{"userName": 123}`))->Promise.thenResolve(response => {
-        Js.log(response)
-      })
-    })
+  let _ = await app->Fastify.listen({port: 3000})
+
+  Js.log("OpenAPI reference: http://localhost:3000/reference")
+
+  // let client = Rest.client(~baseUrl=address)
+  // let _ = client.call(createGame, %raw(`{"userName": 123}`))->Promise.thenResolve(response => {
+  //   Js.log(response)
+  // })
 }
 
 let _ = main()

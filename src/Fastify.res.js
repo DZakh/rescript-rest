@@ -119,6 +119,9 @@ function route(app, restRoute, fn) {
 
 var Swagger = {};
 
+var Scalar = {};
+
 exports.route = route;
 exports.Swagger = Swagger;
+exports.Scalar = Scalar;
 /* Rest Not a pure module */

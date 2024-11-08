@@ -311,12 +311,18 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
 }
 
 module Swagger = {
-  type openapi = {}
-  type options = {openapi?: openapi}
+  type options = {openapi?: OpenAPI.t}
 
   @module("@fastify/swagger")
   external plugin: plugin<options> = "default"
 
   @send
   external generate: t => Js.Json.t = "swagger"
+}
+
+module Scalar = {
+  type options = {routePrefix: string}
+
+  @module("@scalar/fastify-api-reference")
+  external plugin: plugin<options> = "default"
 }
