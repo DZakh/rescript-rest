@@ -367,6 +367,19 @@ asyncTest("Test simple GET request", async t => {
   t->ExecutionContext.plan(3)
 })
 
+let bigint: S.t<bigint> = S.custom("BigInt", s => {
+  {
+    parser: unknown => {
+      if Js.typeof(unknown) !== "bigint" {
+        s.fail("Expected bigint")
+      } else {
+        unknown->Obj.magic
+      }
+    },
+    serializer: unknown => unknown,
+  }
+})
+
 asyncTest("Test query params encoding to path", async t => {
   let getHeight = Rest.route(() => {
     path: "/height",
@@ -378,6 +391,7 @@ asyncTest("Test query params encoding to path", async t => {
         "null": s.query("null", S.null(S.string)),
         "bool": s.query("bool", S.bool),
         "int": s.query("int", S.int),
+        "bigint": s.query("bigint", bigint),
         "array": s.query("array", S.array(S.string)),
         "nan": s.query("nan", S.literal(%raw(`NaN`))),
         "float": s.query("float", S.float),
@@ -413,6 +427,7 @@ asyncTest("Test query params encoding to path", async t => {
     "null": None,
     "bool": true,
     "int": 123,
+    "bigint": 111n,
     "array": ["a", "b", "c"],
     "nan": %raw(`NaN`),
     "float": 1.2,
@@ -432,7 +447,7 @@ asyncTest("Test query params encoding to path", async t => {
     t->Assert.deepEqual(
       args,
       {
-        path: "http://localhost:3000/height?string=abc&null=&bool=true&int=123&array[0]=a&array[1]=b&array[2]=c&nan=NaN&float=1.2&matrix[0][0]=a0&matrix[0][1]=a1&matrix[1][0]=b0&arrayOfObjects[0][field]=v0&arrayOfObjects[1][field]=v1&%3D%3D%3D=%3D%3D%3D&trueString=true&nested[nestedNested][field]=nv",
+        path: "http://localhost:3000/height?string=abc&null=&bool=true&int=123&bigint=111&array[0]=a&array[1]=b&array[2]=c&nan=NaN&float=1.2&matrix[0][0]=a0&matrix[0][1]=a1&matrix[1][0]=b0&arrayOfObjects[0][field]=v0&arrayOfObjects[1][field]=v1&%3D%3D%3D=%3D%3D%3D&trueString=true&nested[nestedNested][field]=nv",
         body: None,
         headers: None,
         method: "GET",
@@ -460,6 +475,8 @@ asyncTest("Test query params encoding to path", async t => {
     ~jsonQuery=true,
   )
 
+  // BigInt is not supported by jsonQuery mode
+  let _ = %raw(`delete variables.bigint`)
   t->Assert.deepEqual(await jsonQueryClient.call(getHeight, variables), true)
 
   t->ExecutionContext.plan(4)
