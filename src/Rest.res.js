@@ -2,6 +2,7 @@
 'use strict';
 
 var S$RescriptSchema = require("rescript-schema/src/S.res.js");
+var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 async function $$default(args) {
   var result = await fetch(args.path, args);
@@ -73,17 +74,17 @@ function parsePath(_path, pathItems, pathParams) {
 
 function coerceSchema(schema) {
   return S$RescriptSchema.preprocess(schema, (function (s) {
-                var optionalSchema = S$RescriptSchema.classify(s.schema);
+                var optionalSchema = s.schema.t;
                 var tagged;
-                tagged = typeof optionalSchema !== "object" || optionalSchema.TAG !== "Option" ? optionalSchema : S$RescriptSchema.classify(optionalSchema._0);
+                tagged = typeof optionalSchema !== "object" || optionalSchema.TAG !== "option" ? optionalSchema : optionalSchema._0.t;
                 var exit = 0;
                 if (typeof tagged !== "object") {
                   switch (tagged) {
-                    case "Int" :
-                    case "Float" :
+                    case "int32" :
+                    case "number" :
                         exit = 2;
                         break;
-                    case "Bool" :
+                    case "boolean" :
                         exit = 1;
                         break;
                     default:
@@ -91,7 +92,7 @@ function coerceSchema(schema) {
                   }
                 } else {
                   switch (tagged.TAG) {
-                    case "Literal" :
+                    case "literal" :
                         switch (tagged._0.kind) {
                           case "Number" :
                               exit = 2;
@@ -135,6 +136,33 @@ function coerceSchema(schema) {
                   
                 }
               }));
+}
+
+function stripInPlace(schema) {
+  schema.t.unknownKeys = "Strip";
+}
+
+function getSchemaField(schema, fieldName) {
+  return schema.t.fields[fieldName];
+}
+
+function isNestedFlattenSupported(schema) {
+  var match = schema.t;
+  if (typeof match !== "object") {
+    return false;
+  }
+  if (match.TAG !== "object") {
+    return false;
+  }
+  if (match.advanced) {
+    return false;
+  }
+  var match$1 = S$RescriptSchema.reverse(schema).t;
+  if (typeof match$1 !== "object" || !(match$1.TAG === "object" && !match$1.advanced)) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 var bearerAuthSchema = S$RescriptSchema.transform(S$RescriptSchema.string, (function (s) {
@@ -190,18 +218,22 @@ function params(route) {
   var variablesSchema = S$RescriptSchema.object(function (s) {
         return routeDefinition.variables({
                     field: (function (fieldName, schema) {
-                        return s.nestedField("body", fieldName, schema);
+                        return s.nested("body").f(fieldName, schema);
                       }),
                     body: (function (schema) {
-                        return s.f("body", schema);
+                        if (isNestedFlattenSupported(schema)) {
+                          return s.nested("body").flatten(schema);
+                        } else {
+                          return s.f("body", schema);
+                        }
                       }),
                     rawBody: (function (schema) {
-                        var match = S$RescriptSchema.classify(schema);
+                        var match = schema.t;
                         var isNonStringBased;
                         isNonStringBased = typeof match !== "object" ? (
-                            match === "String" ? false : true
+                            match === "string" ? false : true
                           ) : (
-                            match.TAG === "Literal" && match._0.kind === "String" ? false : true
+                            match.TAG === "literal" && match._0.kind === "String" ? false : true
                           );
                         if (isNonStringBased) {
                           throw new Error("[rescript-rest] Only string-based schemas are allowed in rawBody");
@@ -210,34 +242,40 @@ function params(route) {
                         return s.f("body", schema);
                       }),
                     header: (function (fieldName, schema) {
-                        return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
+                        return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
                       }),
                     query: (function (fieldName, schema) {
-                        return s.nestedField("query", fieldName, coerceSchema(schema));
+                        return s.nested("query").f(fieldName, coerceSchema(schema));
                       }),
                     param: (function (fieldName, schema) {
                         if (!pathParams[fieldName]) {
                           throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
                         }
-                        return s.nestedField("params", fieldName, coerceSchema(schema));
+                        return s.nested("params").f(fieldName, coerceSchema(schema));
                       }),
                     auth: (function (auth) {
                         var tmp;
                         tmp = auth === "Bearer" ? bearerAuthSchema : basicAuthSchema;
-                        return s.nestedField("headers", "authorization", tmp);
+                        return s.nested("headers").f("authorization", tmp);
                       })
                   });
       });
+  stripInPlace(variablesSchema);
   variablesSchema.f = undefined;
-  var tmp = S$RescriptSchema.classify(variablesSchema);
-  tmp.unknownKeys = "Strip";
-  var items = S$RescriptSchema.classify(variablesSchema).items;
-  items.forEach(function (item) {
-        var schema = item.t;
-        schema.f = (function (_b, inputVar) {
-            return "!" + inputVar;
-          });
-      });
+  var match = getSchemaField(variablesSchema, "headers");
+  if (match !== undefined) {
+    var schema = match.schema;
+    stripInPlace(schema);
+    schema.f = undefined;
+  }
+  var match$1 = getSchemaField(variablesSchema, "params");
+  if (match$1 !== undefined) {
+    match$1.schema.f = undefined;
+  }
+  var match$2 = getSchemaField(variablesSchema, "query");
+  if (match$2 !== undefined) {
+    match$2.schema.f = undefined;
+  }
   var responsesMap = {};
   var responses = [];
   routeDefinition.responses.forEach(function (r) {
@@ -256,14 +294,18 @@ function params(route) {
                       }),
                     data: (function (schema) {
                         builder.emptyData = false;
-                        return s.f("data", schema);
+                        if (isNestedFlattenSupported(schema)) {
+                          return s.nested("data").flatten(schema);
+                        } else {
+                          return s.f("data", schema);
+                        }
                       }),
                     field: (function (fieldName, schema) {
                         builder.emptyData = false;
-                        return s.nestedField("data", fieldName, schema);
+                        return s.nested("data").f(fieldName, schema);
                       }),
                     header: (function (fieldName, schema) {
-                        return s.nestedField("headers", fieldName.toLowerCase(), coerceSchema(schema));
+                        return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
                       })
                   });
               if (builder.emptyData) {
@@ -274,9 +316,23 @@ function params(route) {
         if (builder.status === undefined) {
           register(responsesMap, "default", builder);
         }
-        var tmp = S$RescriptSchema.classify(schema);
-        tmp.unknownKeys = "Strip";
-        builder.dataSchema = S$RescriptSchema.classify(schema).fields.data.t;
+        stripInPlace(schema);
+        schema.f = undefined;
+        var dataSchema = getSchemaField(schema, "data").schema;
+        builder.dataSchema = dataSchema;
+        var match = dataSchema.t;
+        if (typeof match === "object" && match.TAG === "literal") {
+          var dataTypeValidation = dataSchema.f;
+          schema.f = (function (b, inputVar) {
+              return dataTypeValidation(b, inputVar + ".data");
+            });
+        }
+        var match$1 = getSchemaField(schema, "headers");
+        if (match$1 !== undefined) {
+          var schema$1 = match$1.schema;
+          stripInPlace(schema$1);
+          schema$1.f = undefined;
+        }
         builder.schema = schema;
         responses.push(builder);
       });
@@ -363,7 +419,7 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var match = params(route);
   var responsesMap = match.responsesMap;
-  var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(variables, match.variablesSchema);
+  var data = S$RescriptSchema.reverseConvertOrThrow(variables, match.variablesSchema);
   if (data.body !== (void 0)) {
     if (!match.isRawBody) {
       data.body = (JSON.stringify(data["body"]));
@@ -382,13 +438,30 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
               var responseStatus = fetcherResponse.status;
               var response = responsesMap[responseStatus] || responsesMap[(responseStatus / 100 | 0) + "XX"] || responsesMap["default"];
               if (response !== undefined) {
-                return S$RescriptSchema.parseAnyOrRaiseWith(fetcherResponse, response.schema);
+                try {
+                  return S$RescriptSchema.parseOrThrow(fetcherResponse, response.schema);
+                }
+                catch (raw_error){
+                  var error = Caml_js_exceptions.internalToOCamlException(raw_error);
+                  if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
+                    var error$1 = error._1;
+                    var match = error$1.code;
+                    if (typeof match === "object" && match.TAG === "InvalidType" && error$1.path === S$RescriptSchema.Path.empty) {
+                      var message = "Failed parsing response data. Reason: Expected " + getSchemaField(match.expected, "data").schema.n() + ", received " + match.received.data;
+                      throw new Error("[rescript-rest] " + message);
+                    }
+                    var message$1 = "Failed parsing response at " + error$1.path + ". Reason: " + S$RescriptSchema.$$Error.reason(error$1);
+                    throw new Error("[rescript-rest] " + message$1);
+                  }
+                  throw error;
+                }
+              } else {
+                var error$2 = "Unexpected response status \"" + fetcherResponse.status.toString() + "\"";
+                if (fetcherResponse.data && typeof fetcherResponse.data.message === "string") {
+                  error$2 = error$2 + ". Message: " + fetcherResponse.data.message;
+                }
+                throw new Error("[rescript-rest] " + error$2);
               }
-              var error = "Unexpected response status \"" + fetcherResponse.status.toString() + "\"";
-              if (fetcherResponse.data && typeof fetcherResponse.data.message === "string") {
-                error = error + ". Message: " + fetcherResponse.data.message;
-              }
-              throw new Error("[rescript-rest] " + error);
             });
 }
 

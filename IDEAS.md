@@ -1,0 +1,1 @@
+- Add Rest.curl to generate curl command for debugging

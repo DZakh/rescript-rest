@@ -51,7 +51,7 @@ function route(app, restRoute, fn) {
         var routeOptions_handler = function (request, reply) {
           var variables;
           try {
-            variables = S$RescriptSchema.parseAnyOrRaiseWith(request, variablesSchema);
+            variables = S$RescriptSchema.parseOrThrow(request, variablesSchema);
           }
           catch (raw_error){
             var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -67,7 +67,7 @@ function route(app, restRoute, fn) {
             throw error;
           }
           fn(variables).then(function (handlerReturn) {
-                var data = S$RescriptSchema.serializeToUnknownOrRaiseWith(handlerReturn, responseSchema);
+                var data = S$RescriptSchema.reverseConvertOrThrow(handlerReturn, responseSchema);
                 var headers = data.headers;
                 if (headers) {
                   reply.headers(headers);
@@ -85,11 +85,11 @@ function route(app, restRoute, fn) {
         };
         if (app.swagger) {
           var addSchemaFor = function ($$location) {
-            var item = S$RescriptSchema.classify(variablesSchema).fields[$$location];
+            var item = variablesSchema.t.fields[$$location];
             if (item === undefined) {
               return ;
             }
-            var jsonSchema = JSONSchema.make(item.t);
+            var jsonSchema = JSONSchema.make(item.schema);
             if (jsonSchema.TAG !== "Ok") {
               return Js_exn.raiseError("Failed to create JSON-Schema for " + $$location + " of " + definition.method + " " + definition.path + " route. Error: " + jsonSchema._0);
             }

@@ -244,7 +244,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       method: (definition.method :> string),
       url: url.contents,
       handler: (request, reply) => {
-        let variables = try request->S.parseAnyOrRaiseWith(variablesSchema) catch {
+        let variables = try request->S.parseOrThrow(variablesSchema) catch {
         | S.Raised(error) => {
             reply.status(400)
             reply.send({
@@ -256,7 +256,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
           }
         }
         let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
-          let data: {..} = handlerReturn->S.serializeToUnknownOrRaiseWith(responseSchema)->Obj.magic
+          let data: {..} = handlerReturn->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
             reply.headers(headers)
