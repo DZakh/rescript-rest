@@ -11,31 +11,16 @@
   REST? HTTP-RPC? Your own custom hybrid? rescript-rest doesn't care!
 
 - **First class DX**  
-  Less unnecessary builds in monorepos, instant compile-time errors, and instantly view endpoint implementations through your IDEs "go to definition"
+  Use your application data structures and types without worrying about how they're transformed and transferred.
 
 - **Small package size and tree-shakable routes**  
   Routes comple to simple functions which allows tree-shaking only possible with ReScript.
 
 > ⚠️ **rescript-rest** relies on **rescript-schema** which uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
-## Install
+## Tutorials
 
-Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) and `rescript-schema` ([instruction](https://github.com/DZakh/rescript-schema/blob/main/docs/rescript-usage.md#install)).
-
-Then run:
-
-```sh
-npm install rescript-rest
-```
-
-Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
-
-```diff
-{
-  ...
-+ "bs-dependencies": ["rescript-rest"],
-}
-```
+- Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
 
 ## Super Simple Example
 
@@ -91,6 +76,25 @@ let _ = app->Fastify.listen({port: 3000})
 **Examples from public repositories:**
 
 - [Cli App Rock-Paper-Scissors](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
+
+## Install
+
+Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) and `rescript-schema` ([instruction](https://github.com/DZakh/rescript-schema/blob/main/docs/rescript-usage.md#install)).
+
+Then run:
+
+```sh
+npm install rescript-rest
+```
+
+Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
+
+```diff
+{
+  ...
++ "bs-dependencies": ["rescript-rest"],
+}
+```
 
 ## Path Parameters
 
