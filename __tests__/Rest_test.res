@@ -980,10 +980,6 @@ asyncTest("Multiple path params", async t => {
 })
 
 asyncTest("Fastify server works with path containing columns", async t => {
-  S.setGlobalConfig({
-    defaultUnknownKeys: Strip,
-  })
-
   let getSubComment = Rest.route(() => {
     path: "/post:2/{id:1}",
     method: Get,
@@ -1029,15 +1025,21 @@ asyncTest("Fastify server works with path containing columns", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(
-    await client.call(
-      getSubComment,
-      {
-        "id": "abc",
-      },
-    ),
-    true,
+  S.setGlobalConfig({
+    defaultUnknownKeys: Strip,
+  })
+  // Otherwise it will fail in the CI because of concurrency
+  let p = client.call(
+    getSubComment,
+    {
+      "id": "abc",
+    },
   )
+  S.setGlobalConfig({
+    defaultUnknownKeys: Strict,
+  })
+
+  t->Assert.deepEqual(await p, true)
 
   // FIXME: Should return 404
   t->Assert.deepEqual(
@@ -1051,10 +1053,6 @@ asyncTest("Fastify server works with path containing columns", async t => {
   )
 
   t->ExecutionContext.plan(4)
-
-  S.setGlobalConfig({
-    defaultUnknownKeys: Strict,
-  })
 })
 
 asyncTest("Fails to register two default responses", async t => {
