@@ -376,7 +376,7 @@ asyncTest("Integration test of simple POST request", async t => {
   })
 
   let address = await app->Fastify.listenFirstAvailableLocalPort
-  await t->ExecutionContext.teardown(() => app->Fastify.close)
+  t->ExecutionContext.teardown(() => app->Fastify.close)
 
   let client = Rest.client(~baseUrl=address)
 

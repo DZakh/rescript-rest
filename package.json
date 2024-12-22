@@ -39,7 +39,7 @@
     "rescript-openapi": "^0.4.0"
   },
   "devDependencies": {
-    "@dzakh/rescript-ava": "3.0.0",
+    "@dzakh/rescript-ava": "3.1.0",
     "@fastify/swagger": "9.2.0",
     "@scalar/fastify-api-reference": "1.25.60",
     "ava": "6.2.0",
