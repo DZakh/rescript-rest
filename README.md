@@ -47,10 +47,8 @@ let getPosts = Rest.route(() => {
 Consume the API on the client with a RPC-like interface:
 
 ```rescript
-let client = Rest.client(~baseUrl="http://localhost:3000")
-
-let result = await client.call(
-  Contract.getPosts,
+let result = await Contract.getPosts->Rest.fetch(
+  "http://localhost:3000",
   {
     "skip": 0,
     "take": 10,
