@@ -66,15 +66,15 @@ function route(app, restRoute, fn) {
             }
             throw error;
           }
-          fn(variables).then(function (handlerReturn) {
-                var data = S$RescriptSchema.reverseConvertOrThrow(handlerReturn, responseSchema);
-                var headers = data.headers;
-                if (headers) {
-                  reply.headers(headers);
-                }
-                reply.status((data.status || 200));
-                reply.send(data.data);
-              });
+          return fn(variables).then(function (handlerReturn) {
+                      var data = S$RescriptSchema.reverseConvertOrThrow(handlerReturn, responseSchema);
+                      var headers = data.headers;
+                      if (headers) {
+                        reply.headers(headers);
+                      }
+                      reply.status((data.status || 200));
+                      return data.data;
+                    });
         };
         var routeOptions_schema = routeSchema;
         var routeOptions = {

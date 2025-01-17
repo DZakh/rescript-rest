@@ -180,7 +180,7 @@ type routeSchema = {
 type routeOptions = {
   method: string,
   url: string,
-  handler: (request, reply) => unit,
+  handler: 'response. (request, reply) => promise<'response>,
   schema?: routeSchema,
 }
 @send
@@ -255,14 +255,14 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             raise(%raw(`0`))
           }
         }
-        let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
+        fn(variables)->Promise.thenResolve(handlerReturn => {
           let data: {..} = handlerReturn->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
             reply.headers(headers)
           }
           reply.status(%raw(`data.status || 200`))
-          reply.send(data["data"])
+          data["data"]
         })
       },
       schema: routeSchema,
