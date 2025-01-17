@@ -66,7 +66,9 @@ function route(app, restRoute, fn) {
             }
             throw error;
           }
-          fn(variables).then(function (handlerReturn) {
+          fn(variables).catch(function (e) {
+                  return e;
+                }).then(function (handlerReturn) {
                 var data = S$RescriptSchema.reverseConvertOrThrow(handlerReturn, responseSchema);
                 var headers = data.headers;
                 if (headers) {

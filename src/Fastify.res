@@ -9,6 +9,9 @@ module Promise = {
 
   @send
   external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
+
+  @send
+  external catch: (t<'a>, 'a => 'b) => t<'b> = "catch"
 }
 
 type t
@@ -255,15 +258,18 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             raise(%raw(`0`))
           }
         }
-        let _ = fn(variables)->Promise.thenResolve(handlerReturn => {
-          let data: {..} = handlerReturn->S.reverseConvertOrThrow(responseSchema)->Obj.magic
-          let headers = data["headers"]
-          if headers->Obj.magic {
-            reply.headers(headers)
-          }
-          reply.status(%raw(`data.status || 200`))
-          reply.send(data["data"])
-        })
+        let _ =
+          fn(variables)
+          ->Promise.catch(e => e)
+          ->Promise.thenResolve(handlerReturn => {
+            let data: {..} = handlerReturn->S.reverseConvertOrThrow(responseSchema)->Obj.magic
+            let headers = data["headers"]
+            if headers->Obj.magic {
+              reply.headers(headers)
+            }
+            reply.status(%raw(`data.status || 200`))
+            reply.send(data["data"])
+          })
       },
       schema: routeSchema,
     }
