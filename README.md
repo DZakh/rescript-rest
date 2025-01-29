@@ -58,7 +58,7 @@ let result = await Contract.getPosts->Rest.fetch(
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": "1"}` headers
 ```
 
-Fulfil the contract on your sever, with a type-safe Fasitfy integration:
+Fulfil the contract on your sever, with a type-safe Fastify integration:
 
 ```rescript
 let app = Fastify.make()
