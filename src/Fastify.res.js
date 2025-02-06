@@ -41,11 +41,17 @@ function route(app, restRoute, fn) {
         var routeSchema_summary = definition.summary;
         var routeSchema_deprecated = definition.deprecated;
         var routeSchema_response = routeSchemaResponses;
+        var routeSchema_operationId = definition.operationId;
+        var routeSchema_tags = definition.tags;
+        var routeSchema_externalDocs = definition.externalDocs;
         var routeSchema = {
           description: routeSchema_description,
           summary: routeSchema_summary,
           deprecated: routeSchema_deprecated,
-          response: routeSchema_response
+          response: routeSchema_response,
+          operationId: routeSchema_operationId,
+          tags: routeSchema_tags,
+          externalDocs: routeSchema_externalDocs
         };
         var routeOptions_method = definition.method;
         var routeOptions_handler = function (request, reply) {

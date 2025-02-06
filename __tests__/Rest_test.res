@@ -1332,3 +1332,72 @@ asyncTest("Sends response without a data", async t => {
   let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
   t->Assert.deepEqual(await client.call(getHeight, ()), ())
 })
+
+asyncTest("Graphql example https://x.com/ChShersh/status/1880968521200603364", async t => {
+  let _issuesQuery = Rest.route(() => {
+    path: "",
+    method: Post,
+    variables: s => {
+      let _ = s.header("Authorization", S.literal(`bearer ${%raw(`process.env.GITHUB_TOKEN`)}`))
+      let _ = s.header("User-Agent", S.literal("chshersh/github-tui"))
+      s.field(
+        "query",
+        S.string->S.transform(
+          _ => {
+            serializer: data =>
+              `query {
+                repository(owner: "${data["owner"]}", name: "${data["repo"]}") {
+                  issues(first: 2, states: [OPEN], orderBy: {field: CREATED_AT, direction: DESC}) {
+                    nodes {
+                      number
+                      title
+                      author {
+                        login
+                      }
+                    }
+                  }
+                }
+              }`,
+          },
+        ),
+      )
+    },
+    responses: [
+      s =>
+        s.data(
+          S.object(
+            s =>
+              s.nested("data").nested("repository").nested("issues").fieldOr(
+                "nodes",
+                S.array(
+                  S.object(
+                    s =>
+                      {
+                        "number": s.field("number", S.int),
+                        "title": s.field("title", S.string),
+                        "author": s.nested("author").field("login", S.string),
+                      },
+                  ),
+                ),
+                [],
+              ),
+          ),
+        ),
+    ],
+  })
+  // let _issues = await Rest.fetch(
+  //   _issuesQuery,
+  //   "https://api.github.com/graphql",
+  //   {
+  //     "owner": "ChShersh",
+  //     "repo": "status",
+  //   },
+  // )
+
+  t->Assert.pass
+
+  // let app = Fastify.make()
+  // app->Fastify.route(getHeight, async () => ())
+  // let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
+  // t->Assert.deepEqual(await client.call(getHeight, ()), ())
+})

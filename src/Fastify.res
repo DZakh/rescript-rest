@@ -175,6 +175,9 @@ type routeSchema = {
   summary?: string,
   deprecated?: bool,
   response?: dict<routeResponse>,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
 }
 
 type routeOptions = {
@@ -238,6 +241,9 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       description: ?definition.description,
       summary: ?definition.summary,
       deprecated: ?definition.deprecated,
+      tags: ?definition.tags,
+      operationId: ?definition.operationId,
+      externalDocs: ?definition.externalDocs,
       response: routeSchemaResponses,
     }
     let routeOptions = {

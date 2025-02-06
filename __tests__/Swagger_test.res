@@ -280,6 +280,12 @@ asyncTest("Route with all meta info and deprecated", async t => {
         description: "This is a description",
         summary: "This is a summary",
         deprecated: true,
+        tags: ["Foo", "Bar"],
+        externalDocs: {
+          description: "External docs",
+          url: "https://example.com",
+        },
+        operationId: "getNoop",
         path: "/",
         method: Post,
         variables: _ => (),
@@ -304,6 +310,12 @@ asyncTest("Route with all meta info and deprecated", async t => {
             "deprecated": true,
             "summary": "This is a summary",
             "description": "This is a description",
+            "tags": ["Foo", "Bar"],
+            "externalDocs": {
+              "description": "External docs",
+              "url": "https://example.com",
+            },
+            "operationId": "getNoop",
             "responses": {
               "default": {
                 "description": "Default Response",

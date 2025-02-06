@@ -134,6 +134,9 @@ type definition<'variables, 'response> = {
   summary?: string,
   description?: string,
   deprecated?: bool,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
 }
 
 type route<'variables, 'response>
