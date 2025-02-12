@@ -522,7 +522,7 @@ function singleRouteNextJsHandler(route, implementation) {
               res.setHeader(key, headers[key]);
             });
       }
-      return res.status((data.status || 200));
+      return res.status((data.status || 200)).json(data.data);
     }
     catch (raw_error$1){
       var error$1 = Caml_js_exceptions.internalToOCamlException(raw_error$1);

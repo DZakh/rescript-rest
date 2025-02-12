@@ -764,7 +764,7 @@ let singleRouteNextJsHandler = (route, implementation): nextJsHandler => {
             })
           | None => ()
           }
-          res["status"](%raw(`data.status || 200`))
+          res["status"](%raw(`data.status || 200`))["json"](data["data"])
         } catch {
         | S.Raised(error) =>
           Js.Exn.raiseError(
