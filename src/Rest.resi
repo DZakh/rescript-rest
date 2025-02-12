@@ -175,9 +175,3 @@ let fetch: (
   ~fetcher: ApiFetcher.t=?,
   ~jsonQuery: bool=?,
 ) => promise<'response>
-
-type nextJsHandler
-let singleRouteNextJsHandler: (
-  route<'input, 'response>,
-  'input => promise<'response>,
-) => nextJsHandler
