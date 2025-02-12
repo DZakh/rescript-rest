@@ -27,7 +27,7 @@ asyncTest("Global errors are propagated properly", async t => {
   let failingRoute = Rest.route(() => {
     path: "/test",
     method: Get,
-    variables: _s => (),
+    input: _s => (),
     responses: [
       s => {
         s.status(200)
@@ -40,7 +40,7 @@ asyncTest("Global errors are propagated properly", async t => {
 
   let callCount = ref(-1)
 
-  app->Fastify.route(failingRoute, _variables => {
+  app->Fastify.route(failingRoute, _input => {
     callCount := callCount.contents + 1
     switch callCount.contents {
     | 0 => Js.Exn.raiseError("Sync error")

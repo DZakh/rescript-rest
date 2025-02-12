@@ -194,7 +194,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
   // 1. To be able to configure ContentTypeParser specifically for the route
   // 2. To get access to app with registered plugins eg Swagger
   app->internalRegister((app, _, done) => {
-    let {definition, variablesSchema, responseSchema, responses, pathItems, isRawBody} =
+    let {definition, inputSchema, responseSchema, responses, pathItems, isRawBody} =
       restRoute->Rest.params
 
     let url = ref("")
@@ -247,7 +247,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       method: (definition.method :> string),
       url: url.contents,
       handler: (request, reply) => {
-        let variables = try request->S.parseOrThrow(variablesSchema) catch {
+        let input = try request->S.parseOrThrow(inputSchema) catch {
         | S.Raised(error) => {
             reply.status(400)
             reply.send({
@@ -258,7 +258,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             raise(%raw(`0`))
           }
         }
-        fn(variables)->Promise.thenResolve(implementationResult => {
+        fn(input)->Promise.thenResolve(implementationResult => {
           let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
@@ -274,7 +274,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     // Add request schemas only when swagger plugin enabled
     if (app->Obj.magic)["swagger"] {
       let addSchemaFor = location =>
-        switch (variablesSchema->S.classify->Obj.magic)["fields"]->Js.Dict.unsafeGet(location) {
+        switch (inputSchema->S.classify->Obj.magic)["fields"]->Js.Dict.unsafeGet(location) {
         | Some(item: S.item) =>
           switch item.schema->JSONSchema.make {
           | Ok(jsonSchema) =>

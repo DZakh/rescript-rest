@@ -17,7 +17,7 @@ let main = async () => {
   let createGame = Rest.route(() => {
     path: "/game",
     method: Post,
-    variables: s => s.body(userSchema),
+    input: s => s.body(userSchema),
     responses: [
       s => {
         s.status(200)
@@ -40,7 +40,7 @@ let main = async () => {
     },
   )
 
-  app->Fastify.route(createGame, async _variables => {
+  app->Fastify.route(createGame, async _input => {
     true
   })
 
