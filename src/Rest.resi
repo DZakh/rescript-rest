@@ -149,6 +149,7 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
+  responseSchema: S.t<'response>,
   responses: array<Response.t<'response>>,
   responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
@@ -175,3 +176,9 @@ let fetch: (
   ~fetcher: ApiFetcher.t=?,
   ~jsonQuery: bool=?,
 ) => promise<'response>
+
+type nextJsHandler
+let singleRouteNextJsHandler: (
+  route<'variables, 'response>,
+  'variables => promise<'response>,
+) => nextJsHandler

@@ -251,6 +251,7 @@ type routeParams<'variables, 'response> = {
   definition: definition<'variables, 'response>,
   pathItems: array<pathItem>,
   variablesSchema: S.t<'variables>,
+  responseSchema: S.t<'response>,
   responses: array<Response.t<'response>>,
   responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
@@ -526,6 +527,7 @@ let params = route => {
       let params = {
         definition: routeDefinition,
         variablesSchema,
+        responseSchema: S.union(responses->Js.Array2.map(r => r.schema)),
         responses,
         pathItems,
         responsesMap,
@@ -719,4 +721,58 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
     call,
     jsonQuery,
   }
+}
+
+type nextJsHandler
+
+let singleRouteNextJsHandler = (route, implementation): nextJsHandler => {
+  let {pathItems, definition, isRawBody, responseSchema, variablesSchema} = route->params
+
+  // TOD: Validate that we match the req path
+  pathItems->Js.Array2.forEach(pathItem => {
+    switch pathItem {
+    | Param(param) =>
+      panic(
+        `Route ${definition.path} contains a path param ${param.name} which is not supported by Next.js handler yet`,
+      )
+    | Static(_) => ()
+    }
+  })
+  if isRawBody {
+    panic(
+      `Route ${definition.path} contains a raw body which is not supported by Next.js handler yet`,
+    )
+  }
+
+  (
+    async (req, res) => {
+      if req["method"] !== definition.method {
+        res["status"](404)["end"]()
+      }
+      switch req->S.parseOrThrow(variablesSchema) {
+      | variables =>
+        try {
+          let implementationResult = await implementation(variables)
+          let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
+          let headers: option<dict<string>> = data["headers"]
+          switch headers {
+          | Some(headers) =>
+            headers
+            ->Js.Dict.keys
+            ->Js.Array2.forEach(key => {
+              res["setHeader"](key, headers->Js.Dict.unsafeGet(key))
+            })
+          | None => ()
+          }
+          res["status"](%raw(`data.status || 200`))
+        } catch {
+        | S.Raised(error) =>
+          Js.Exn.raiseError(
+            `Unexpected error in the ${definition.path} route: ${error->S.Error.message}`,
+          )
+        }
+      | exception S.Raised(error) => res["status"](400)["send"](error->S.Error.message)
+      }
+    }
+  )->Obj.magic
 }

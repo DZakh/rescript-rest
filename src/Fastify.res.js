@@ -10,6 +10,7 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 function route(app, restRoute, fn) {
   app.register(function (app, param, done) {
         var match = Rest.params(restRoute);
+        var responseSchema = match.responseSchema;
         var variablesSchema = match.variablesSchema;
         var pathItems = match.pathItems;
         var definition = match.definition;
@@ -18,10 +19,8 @@ function route(app, restRoute, fn) {
           var pathItem = pathItems[idx];
           url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
         }
-        var responseSchemas = [];
         var routeSchemaResponses = {};
         match.responses.forEach(function (r) {
-              responseSchemas.push(r.schema);
               var status = r.status;
               var status$1 = status !== undefined ? status : "default";
               var content = {};
@@ -36,7 +35,6 @@ function route(app, restRoute, fn) {
                 content: content
               };
             });
-        var responseSchema = S$RescriptSchema.union(responseSchemas);
         var routeSchema_description = definition.description;
         var routeSchema_summary = definition.summary;
         var routeSchema_deprecated = definition.deprecated;
@@ -72,8 +70,8 @@ function route(app, restRoute, fn) {
             }
             throw error;
           }
-          return fn(variables).then(function (handlerReturn) {
-                      var data = S$RescriptSchema.reverseConvertOrThrow(handlerReturn, responseSchema);
+          return fn(variables).then(function (implementationResult) {
+                      var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
                       var headers = data.headers;
                       if (headers) {
                         reply.headers(headers);

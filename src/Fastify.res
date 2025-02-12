@@ -194,7 +194,8 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
   // 1. To be able to configure ContentTypeParser specifically for the route
   // 2. To get access to app with registered plugins eg Swagger
   app->internalRegister((app, _, done) => {
-    let {definition, variablesSchema, responses, pathItems, isRawBody} = restRoute->Rest.params
+    let {definition, variablesSchema, responseSchema, responses, pathItems, isRawBody} =
+      restRoute->Rest.params
 
     let url = ref("")
     for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -205,10 +206,8 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       }
     }
 
-    let responseSchemas = []
     let routeSchemaResponses: dict<routeResponse> = Js.Dict.empty()
     responses->Js.Array2.forEach(r => {
-      responseSchemas->Js.Array2.push(r.schema)->ignore
       let status = switch r.status {
       | Some(status) => status->(Obj.magic: int => string)
       | None => "default"
@@ -235,8 +234,6 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       )
     })
 
-    let responseSchema = S.union(responseSchemas)
-
     let routeSchema = {
       description: ?definition.description,
       summary: ?definition.summary,
@@ -261,8 +258,8 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             raise(%raw(`0`))
           }
         }
-        fn(variables)->Promise.thenResolve(handlerReturn => {
-          let data: {..} = handlerReturn->S.reverseConvertOrThrow(responseSchema)->Obj.magic
+        fn(variables)->Promise.thenResolve(implementationResult => {
+          let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
             reply.headers(headers)
