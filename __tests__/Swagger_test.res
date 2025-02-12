@@ -26,7 +26,7 @@ asyncTest("OpenAPI with a simple get request using rawBody", async t => {
       () => {
         path: "/",
         method: Post,
-        variables: s => s.rawBody(S.string),
+        input: s => s.rawBody(S.string),
         responses: [
           s => {
             s.status(200)
@@ -83,7 +83,7 @@ asyncTest("OpenAPI with a simple post request using body", async t => {
       () => {
         path: "/",
         method: Post,
-        variables: s => s.body(S.string),
+        input: s => s.body(S.string),
         responses: [
           s => {
             s.status(200)
@@ -140,7 +140,7 @@ asyncTest("OpenAPI with a mulitiple reponses having description", async t => {
       () => {
         path: "/",
         method: Post,
-        variables: s => s.body(S.string),
+        input: s => s.body(S.string),
         responses: [
           s => {
             s.status(200)
@@ -222,7 +222,7 @@ asyncTest("OpenAPI with response not returning any data", async t => {
       () => {
         path: "/",
         method: Post,
-        variables: s => s.body(S.string),
+        input: s => s.body(S.string),
         responses: [
           s => {
             s.status(200)
@@ -288,7 +288,7 @@ asyncTest("Route with all meta info and deprecated", async t => {
         operationId: "getNoop",
         path: "/",
         method: Post,
-        variables: _ => (),
+        input: _ => (),
         responses: [_ => ()],
       },
     ),
@@ -348,7 +348,7 @@ asyncTest("OpenAPI with a complex request having different types", async t => {
       () => {
         path: "/post/{id}",
         method: Post,
-        variables: s => {
+        input: s => {
           let _ = s.header("x-header", S.literal("foo"))
           let _ = s.param("id", S.literal(123))
           let _ = s.query("name", S.literal(true))

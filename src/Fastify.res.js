@@ -11,7 +11,7 @@ function route(app, restRoute, fn) {
   app.register(function (app, param, done) {
         var match = Rest.params(restRoute);
         var responseSchema = match.responseSchema;
-        var variablesSchema = match.variablesSchema;
+        var inputSchema = match.inputSchema;
         var pathItems = match.pathItems;
         var definition = match.definition;
         var url = "";
@@ -53,9 +53,9 @@ function route(app, restRoute, fn) {
         };
         var routeOptions_method = definition.method;
         var routeOptions_handler = function (request, reply) {
-          var variables;
+          var input;
           try {
-            variables = S$RescriptSchema.parseOrThrow(request, variablesSchema);
+            input = S$RescriptSchema.parseOrThrow(request, inputSchema);
           }
           catch (raw_error){
             var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -70,7 +70,7 @@ function route(app, restRoute, fn) {
             }
             throw error;
           }
-          return fn(variables).then(function (implementationResult) {
+          return fn(input).then(function (implementationResult) {
                       var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
                       var headers = data.headers;
                       if (headers) {
@@ -89,7 +89,7 @@ function route(app, restRoute, fn) {
         };
         if (app.swagger) {
           var addSchemaFor = function ($$location) {
-            var item = variablesSchema.t.fields[$$location];
+            var item = inputSchema.t.fields[$$location];
             if (item === undefined) {
               return ;
             }

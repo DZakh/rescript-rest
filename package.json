@@ -1,10 +1,12 @@
 {
   "name": "rescript-rest",
-  "version": "1.3.0-rc.1",
+  "version": "2.0.0-rc.0",
   "description": "😴 ReScript RPC-like client, contract, and server implementation for a pure REST API",
   "keywords": [
     "rest",
     "api",
+    "trpc",
+    "rpc",
     "contract",
     "http",
     "fetch",

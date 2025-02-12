@@ -216,8 +216,8 @@ function params(route) {
   var pathParams = {};
   parsePath(routeDefinition.path, pathItems, pathParams);
   var isRawBody = false;
-  var variablesSchema = S$RescriptSchema.object(function (s) {
-        return routeDefinition.variables({
+  var inputSchema = S$RescriptSchema.object(function (s) {
+        return routeDefinition.input({
                     field: (function (fieldName, schema) {
                         return s.nested("body").f(fieldName, schema);
                       }),
@@ -261,19 +261,19 @@ function params(route) {
                       })
                   });
       });
-  stripInPlace(variablesSchema);
-  variablesSchema.f = undefined;
-  var match = getSchemaField(variablesSchema, "headers");
+  stripInPlace(inputSchema);
+  inputSchema.f = undefined;
+  var match = getSchemaField(inputSchema, "headers");
   if (match !== undefined) {
     var schema = match.schema;
     stripInPlace(schema);
     schema.f = undefined;
   }
-  var match$1 = getSchemaField(variablesSchema, "params");
+  var match$1 = getSchemaField(inputSchema, "params");
   if (match$1 !== undefined) {
     match$1.schema.f = undefined;
   }
-  var match$2 = getSchemaField(variablesSchema, "query");
+  var match$2 = getSchemaField(inputSchema, "query");
   if (match$2 !== undefined) {
     match$2.schema.f = undefined;
   }
@@ -346,7 +346,7 @@ function params(route) {
   var params$2 = {
     definition: routeDefinition,
     pathItems: pathItems,
-    variablesSchema: variablesSchema,
+    inputSchema: inputSchema,
     responseSchema: params_responseSchema,
     responses: responses,
     responsesMap: responsesMap,
@@ -388,7 +388,7 @@ function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery)
       if (param !== undefined) {
         path = path + param;
       } else {
-        throw new Error("[rescript-rest] " + ("Path parameter \"" + name + "\" is not defined in variables"));
+        throw new Error("[rescript-rest] " + ("Path parameter \"" + name + "\" is not defined in input"));
       }
     }
   }
@@ -419,12 +419,12 @@ function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery)
   return path;
 }
 
-function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
+function $$fetch$1(route, baseUrl, input, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var match = params(route);
   var responsesMap = match.responsesMap;
-  var data = S$RescriptSchema.reverseConvertOrThrow(variables, match.variablesSchema);
+  var data = S$RescriptSchema.reverseConvertOrThrow(input, match.inputSchema);
   if (data.body !== (void 0)) {
     if (!match.isRawBody) {
       data.body = (JSON.stringify(data["body"]));
@@ -473,8 +473,8 @@ function $$fetch$1(route, baseUrl, variables, fetcherOpt, jsonQueryOpt) {
 function client(baseUrl, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
-  var call = function (route, variables) {
-    return $$fetch$1(route, baseUrl, variables, fetcher, jsonQuery);
+  var call = function (route, input) {
+    return $$fetch$1(route, baseUrl, input, fetcher, jsonQuery);
   };
   return {
           call: call,
@@ -487,7 +487,7 @@ function client(baseUrl, fetcherOpt, jsonQueryOpt) {
 function singleRouteNextJsHandler(route, implementation) {
   var match = params(route);
   var responseSchema = match.responseSchema;
-  var variablesSchema = match.variablesSchema;
+  var inputSchema = match.inputSchema;
   var definition = match.definition;
   match.pathItems.forEach(function (pathItem) {
         if (typeof pathItem === "string") {
@@ -502,9 +502,9 @@ function singleRouteNextJsHandler(route, implementation) {
     if (req.method !== definition.method) {
       res.status(404).end();
     }
-    var variables;
+    var input;
     try {
-      variables = S$RescriptSchema.parseOrThrow(req, variablesSchema);
+      input = S$RescriptSchema.parseOrThrow(req, inputSchema);
     }
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -514,7 +514,7 @@ function singleRouteNextJsHandler(route, implementation) {
       throw error;
     }
     try {
-      var implementationResult = await implementation(variables);
+      var implementationResult = await implementation(input);
       var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
       var headers = data.headers;
       if (headers !== undefined) {

@@ -126,10 +126,10 @@ type method =
   | @as("OPTIONS") Options
   | @as("TRACE") Trace
 
-type definition<'variables, 'response> = {
+type definition<'input, 'response> = {
   method: method,
   path: string,
-  variables: s => 'variables,
+  input: s => 'input,
   responses: array<Response.s => 'response>,
   summary?: string,
   description?: string,
@@ -139,29 +139,28 @@ type definition<'variables, 'response> = {
   externalDocs?: OpenAPI.externalDocumentation,
 }
 
-type route<'variables, 'response>
+type route<'input, 'response>
 
 type pathParam = {name: string}
 @unboxed
 type pathItem = Static(string) | Param(pathParam)
 
-type routeParams<'variables, 'response> = {
-  definition: definition<'variables, 'response>,
+type routeParams<'input, 'response> = {
+  definition: definition<'input, 'response>,
   pathItems: array<pathItem>,
-  variablesSchema: S.t<'variables>,
+  inputSchema: S.t<'input>,
   responseSchema: S.t<'response>,
   responses: array<Response.t<'response>>,
   responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
 }
 
-let params: route<'variables, 'response> => routeParams<'variables, 'response>
+let params: route<'input, 'response> => routeParams<'input, 'response>
 
-external route: (unit => definition<'variables, 'response>) => route<'variables, 'response> =
-  "%identity"
+external route: (unit => definition<'input, 'response>) => route<'input, 'response> = "%identity"
 
 type client = {
-  call: 'variables 'response. (route<'variables, 'response>, 'variables) => promise<'response>,
+  call: 'input 'response. (route<'input, 'response>, 'input) => promise<'response>,
   baseUrl: string,
   fetcher: ApiFetcher.t,
   jsonQuery: bool,
@@ -170,15 +169,15 @@ type client = {
 let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
 
 let fetch: (
-  route<'variables, 'response>,
+  route<'input, 'response>,
   string,
-  'variables,
+  'input,
   ~fetcher: ApiFetcher.t=?,
   ~jsonQuery: bool=?,
 ) => promise<'response>
 
 type nextJsHandler
 let singleRouteNextJsHandler: (
-  route<'variables, 'response>,
-  'variables => promise<'response>,
+  route<'input, 'response>,
+  'input => promise<'response>,
 ) => nextJsHandler

@@ -30,7 +30,7 @@ Easily define your API contract somewhere shared, for example, `Contract.res`:
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: Get,
-  variables: s => {
+  input: s => {
     "skip": s.query("skip", S.int),
     "take": s.query("take", S.int),
     "page": s.header("x-pagination-page", S.option(S.int)),
@@ -63,10 +63,10 @@ Fulfil the contract on your sever, with a type-safe Fastify integration:
 ```rescript
 let app = Fastify.make()
 
-app->Fastify.route(Contract.getPosts, variables => {
-  queryPosts(~skip=variables["skip"], ~take=variables["take"], ~page=variables["page"])
+app->Fastify.route(Contract.getPosts, input => {
+  queryPosts(~skip=input["skip"], ~take=input["take"], ~page=input["page"])
 })
-// ^-- Both variables and return value are fully typed!
+// ^-- Both input and return value are fully typed!
 
 let _ = app->Fastify.listen({port: 3000})
 ```
@@ -96,13 +96,13 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 
 ## Path Parameters
 
-You can define path parameters by adding them to the `path` strin with a curly brace `{}` including the parameter name. Then each parameter must be defined in `variables` with the `s.param` method.
+You can define path parameters by adding them to the `path` strin with a curly brace `{}` including the parameter name. Then each parameter must be defined in `input` with the `s.param` method.
 
 ```rescript
 let getPost = Rest.route(() => {
   path: "/api/author/{authorId}/posts/{id}",
   method: Get,
-  variables: s => {
+  input: s => {
     "authorId": s.param("authorId", S.string->S.uuid),
     "id": s.param("id", S.int),
   },
@@ -124,13 +124,13 @@ If you would like to run validations or transformations on the path parameters, 
 
 ## Query Parameters
 
-You can add query parameters to the request by using the `s.query` method in the `variables` definition.
+You can add query parameters to the request by using the `s.query` method in the `input` definition.
 
 ```rescript
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: Get,
-  variables: s => {
+  input: s => {
     "skip": s.query("skip", S.int),
     "take": s.query("take", S.int),
   },
@@ -152,7 +152,7 @@ You can also configure rescript-rest to encode/decode query parameters as JSON b
 
 ## Request Headers
 
-You can add headers to the request by using the `s.header` method in the `variables` definition.
+You can add headers to the request by using the `s.header` method in the `input` definition.
 
 ### Authentication header
 
@@ -162,7 +162,7 @@ For the Authentication header there's an additional helper `s.auth` which suppor
 let getPosts = Rest.route(() => {
   path: "/posts",
   method: Get,
-  variables: s => {
+  input: s => {
     "token": s.auth(Bearer),
     "pagination": s.header("x-pagination", S.option(S.int)),
   },
@@ -188,7 +188,7 @@ For some low-level APIs, you may need to send raw body without any additional pr
 let getLogs = Rest.route(() => {
   path: "/logs",
   method: POST,
-  variables: s => s.rawBody(S.string->S.transform(s => {
+  input: s => s.rawBody(S.string->S.transform(s => {
     // If you use the route on server side, you should also provide the parse function here,
     // But for client side, you can omit it
     serialize: logLevel => {
@@ -216,8 +216,8 @@ let result = await client.call(
 You can also use routes with `rawBody` on the server side with Fastify as any other route:
 
 ```rescript
-app->Fastify.route(getLogs, async variables => {
-  // Do something with variables and return response
+app->Fastify.route(getLogs, async input => {
+  // Do something with input and return response
 })
 ```
 
@@ -233,7 +233,7 @@ If `s.status` is not used in a response definition, it'll be treated as a `defau
 let createPost = Rest.route(() => {
   path: "/posts",
   method: Post,
-  variables: _ => (),
+  input: _ => (),
   responses: [
     s => {
       s.status(201)
@@ -253,7 +253,7 @@ let createPost = Rest.route(() => {
 let createPost = Rest.route(() => {
   path: "/posts",
   method: Post,
-  variables: _ => (),
+  input: _ => (),
   responses: [
     s => {
       s.status(201)
@@ -292,7 +292,7 @@ let ping = Rest.route(() => {
   path: "/ping",
   method: Get,
   summary: "Checks if the server is alive",
-  variables: _ => (),
+  input: _ => (),
   responses: [
     s => {
       s.status(200)
@@ -330,7 +330,7 @@ And implement it on the server side:
 ```rescript
 let app = Fastify.make()
 
-app->Fastify.route(Contract.getPosts, async variables => {
+app->Fastify.route(Contract.getPosts, async input => {
   // Implementation where return type is promise<'response>
 })
 
@@ -373,7 +373,7 @@ app->Fastify.register(
   },
 )
 
-app->Fastify.route(Contract.getPosts, async variables => {
+app->Fastify.route(Contract.getPosts, async input => {
   // Implementation where return type is promise<'response>
 })
 

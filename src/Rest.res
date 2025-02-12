@@ -234,10 +234,10 @@ type method =
   | @as("OPTIONS") Options
   | @as("TRACE") Trace
 
-type definition<'variables, 'response> = {
+type definition<'input, 'response> = {
   method: method,
   path: string,
-  variables: s => 'variables,
+  input: s => 'input,
   responses: array<Response.s => 'response>,
   summary?: string,
   description?: string,
@@ -247,17 +247,17 @@ type definition<'variables, 'response> = {
   externalDocs?: OpenAPI.externalDocumentation,
 }
 
-type routeParams<'variables, 'response> = {
-  definition: definition<'variables, 'response>,
+type routeParams<'input, 'response> = {
+  definition: definition<'input, 'response>,
   pathItems: array<pathItem>,
-  variablesSchema: S.t<'variables>,
+  inputSchema: S.t<'input>,
   responseSchema: S.t<'response>,
   responses: array<Response.t<'response>>,
   responsesMap: dict<Response.t<'response>>,
   isRawBody: bool,
 }
 
-type route<'variables, 'response> = unit => definition<'variables, 'response>
+type route<'input, 'response> = unit => definition<'input, 'response>
 
 let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
   if path !== "" {
@@ -373,12 +373,12 @@ let basicAuthSchema = S.string->S.transform(s => {
 
 let params = route => {
   switch (route->Obj.magic)["_rest"]->(
-    Obj.magic: unknown => option<routeParams<'variables, 'response>>
+    Obj.magic: unknown => option<routeParams<'input, 'response>>
   ) {
   | Some(params) => params
   | None => {
       let routeDefinition = (
-        route->(Obj.magic: route<'variables, 'response> => route<unknown, unknown>)
+        route->(Obj.magic: route<'input, 'response> => route<unknown, unknown>)
       )()
 
       let pathItems = []
@@ -388,8 +388,8 @@ let params = route => {
       // Don't use ref, since it creates an unnecessary object
       let isRawBody = %raw(`false`)
 
-      let variablesSchema = S.object(s => {
-        routeDefinition.variables({
+      let inputSchema = S.object(s => {
+        routeDefinition.input({
           field: (fieldName, schema) => {
             s.nested("body").field(fieldName, schema)
           },
@@ -437,20 +437,20 @@ let params = route => {
       })
 
       {
-        // The variables input is guaranteed to be an object, so we reset the rescript-schema type filter here
-        variablesSchema->stripInPlace
-        variablesSchema->removeTypeValidationInPlace
-        switch variablesSchema->getSchemaField("headers") {
+        // The input input is guaranteed to be an object, so we reset the rescript-schema type filter here
+        inputSchema->stripInPlace
+        inputSchema->removeTypeValidationInPlace
+        switch inputSchema->getSchemaField("headers") {
         | Some({schema}) =>
           schema->stripInPlace
           schema->removeTypeValidationInPlace
         | None => ()
         }
-        switch variablesSchema->getSchemaField("params") {
+        switch inputSchema->getSchemaField("params") {
         | Some({schema}) => schema->removeTypeValidationInPlace
         | None => ()
         }
-        switch variablesSchema->getSchemaField("query") {
+        switch inputSchema->getSchemaField("query") {
         | Some({schema}) => schema->removeTypeValidationInPlace
         | None => ()
         }
@@ -526,7 +526,7 @@ let params = route => {
 
       let params = {
         definition: routeDefinition,
-        variablesSchema,
+        inputSchema,
         responseSchema: S.union(responses->Js.Array2.map(r => r.schema)),
         responses,
         pathItems,
@@ -534,16 +534,15 @@ let params = route => {
         isRawBody,
       }
       (route->Obj.magic)["_rest"] = params
-      params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'variables, 'response>)
+      params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'input, 'response>)
     }
   }
 }
 
-external route: (unit => definition<'variables, 'response>) => route<'variables, 'response> =
-  "%identity"
+external route: (unit => definition<'input, 'response>) => route<'input, 'response> = "%identity"
 
 type client = {
-  call: 'variables 'response. (route<'variables, 'response>, 'variables) => promise<'response>,
+  call: 'input 'response. (route<'input, 'response>, 'input) => promise<'response>,
   baseUrl: string,
   fetcher: ApiFetcher.t,
   // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
@@ -590,7 +589,7 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
       switch (maybeParams->Obj.magic && maybeParams->Js.Dict.unsafeGet(name)->Obj.magic)
         ->(Obj.magic: bool => option<string>) {
       | Some(param) => path := path.contents ++ param
-      | None => panic(`Path parameter "${name}" is not defined in variables`)
+      | None => panic(`Path parameter "${name}" is not defined in input`)
       }
     }
   }
@@ -646,19 +645,19 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
 }
 
 let fetch = (
-  type variables response,
-  route: route<variables, response>,
+  type input response,
+  route: route<input, response>,
   baseUrl,
-  variables,
+  input,
   ~fetcher=ApiFetcher.default,
   ~jsonQuery=false,
 ) => {
-  let route = route->(Obj.magic: route<variables, response> => route<unknown, unknown>)
-  let variables = variables->(Obj.magic: variables => unknown)
+  let route = route->(Obj.magic: route<input, response> => route<unknown, unknown>)
+  let input = input->(Obj.magic: input => unknown)
 
-  let {definition, variablesSchema, responsesMap, pathItems, isRawBody} = route->params
+  let {definition, inputSchema, responsesMap, pathItems, isRawBody} = route->params
 
-  let data = variables->S.reverseConvertOrThrow(variablesSchema)->Obj.magic
+  let data = input->S.reverseConvertOrThrow(inputSchema)->Obj.magic
 
   if data["body"] !== %raw(`void 0`) {
     if !isRawBody {
@@ -714,7 +713,7 @@ let fetch = (
 }
 
 let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
-  let call = (route, variables) => route->fetch(baseUrl, variables, ~fetcher, ~jsonQuery)
+  let call = (route, input) => route->fetch(baseUrl, input, ~fetcher, ~jsonQuery)
   {
     baseUrl,
     fetcher,
@@ -726,7 +725,7 @@ let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
 type nextJsHandler
 
 let singleRouteNextJsHandler = (route, implementation): nextJsHandler => {
-  let {pathItems, definition, isRawBody, responseSchema, variablesSchema} = route->params
+  let {pathItems, definition, isRawBody, responseSchema, inputSchema} = route->params
 
   // TOD: Validate that we match the req path
   pathItems->Js.Array2.forEach(pathItem => {
@@ -749,10 +748,10 @@ let singleRouteNextJsHandler = (route, implementation): nextJsHandler => {
       if req["method"] !== definition.method {
         res["status"](404)["end"]()
       }
-      switch req->S.parseOrThrow(variablesSchema) {
-      | variables =>
+      switch req->S.parseOrThrow(inputSchema) {
+      | input =>
         try {
-          let implementationResult = await implementation(variables)
+          let implementationResult = await implementation(input)
           let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers: option<dict<string>> = data["headers"]
           switch headers {
