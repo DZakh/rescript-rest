@@ -20,35 +20,35 @@ function handler(route, implementation) {
   if (match.isRawBody) {
     throw new Error("[rescript-rest] " + ("Route " + definition.path + " contains a raw body which is not supported by Next.js handler yet"));
   }
-  return async function (genericReq, genericRes) {
-    if (genericReq.method !== definition.method) {
-      genericRes.status(404).end();
+  return async function (req, res) {
+    if (req.method !== definition.method) {
+      return res.status(404).end();
     }
     var input;
     try {
-      input = S$RescriptSchema.parseOrThrow(genericReq, inputSchema);
+      input = S$RescriptSchema.parseOrThrow(req, inputSchema);
     }
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
       if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
-        return genericRes.status(400).send(S$RescriptSchema.$$Error.message(error._1));
+        return res.status(400).send(S$RescriptSchema.$$Error.message(error._1));
       }
       throw error;
     }
     try {
       var implementationResult = await implementation({
             input: input,
-            req: genericReq,
-            res: genericRes
+            req: req,
+            res: res
           });
       var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
       var headers = data.headers;
       if (headers !== undefined) {
         Object.keys(headers).forEach(function (key) {
-              genericRes.setHeader(key, headers[key]);
+              res.setHeader(key, headers[key]);
             });
       }
-      return genericRes.status((data.status || 200)).json(data.data);
+      return res.status((data.status || 200)).json(data.data);
     }
     catch (raw_error$1){
       var error$1 = Caml_js_exceptions.internalToOCamlException(raw_error$1);
