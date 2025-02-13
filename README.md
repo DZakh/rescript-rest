@@ -309,6 +309,51 @@ let ping = Rest.route(() => {
 
 ## Server Implementation
 
+### [Next.js](https://nextjs.org/)
+
+Next.js is a React framework for server-side rendering and static site generation.
+
+Currently `rescript-rest` supports only page API handlers.
+
+Start with defining your API contract:
+
+```rescript
+let getPosts = Rest.route(() => {
+  path: "/getPosts",
+  method: Get,
+  input: _ => (),
+  responses: [
+    s => {
+      s.status(200)
+      s.data(S.array(postSchema))
+    }
+  ]
+})
+```
+
+Create a `pages/api` directory and add a file `getPosts.res` with the following content:
+
+```rescript
+let default = Contract.getPosts->RestNextJs.handler(async ({input, req, res}) => {
+  // Here's your logic
+  []
+})
+```
+
+Then you can call your API handler from the client:
+
+```rescript
+let posts = await Contract.getPosts->Rest.fetch(
+  "/api",
+  ()
+)
+```
+
+#### Known Limitations
+
+- Doesn't support path parameters
+- Doesn't support raw body
+
 ### [Fastify](https://fastify.dev/)
 
 Fastify is a fast and low overhead web framework, for Node.js. You can use it to implement your API server with `rescript-rest`.
