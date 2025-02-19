@@ -49,11 +49,7 @@ Consume the API on the client with a RPC-like interface:
 ```rescript
 let result = await Contract.getPosts->Rest.fetch(
   "http://localhost:3000",
-  {
-    "skip": 0,
-    "take": 10,
-    "page": Some(1),
-  }
+  {"skip": 0, "take": 10, "page": Some(1)}
   // ^-- Fully typed!
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": "1"}` headers
 ```
