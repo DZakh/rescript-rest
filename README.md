@@ -328,6 +328,10 @@ let ping = Rest.route(() => {
 React Hooks for Data Fetching - With SWR, components will get a stream of data updates constantly and automatically.
 And the UI will be always fast and reactive.
 
+```sh
+npm install rescript-rest swr
+```
+
 ```rescript
 @react.component
 let make = () => {
