@@ -189,6 +189,8 @@ type routeOptions = {
 @send
 external route: (t, routeOptions) => unit = "route"
 
+type options<'input> = {input: 'input}
+
 let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
   // Wrap it with register for:
   // 1. To be able to configure ContentTypeParser specifically for the route
@@ -258,7 +260,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             raise(%raw(`0`))
           }
         }
-        fn(input)->Promise.thenResolve(implementationResult => {
+        fn({input: input})->Promise.thenResolve(implementationResult => {
           let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {

@@ -70,7 +70,9 @@ function route(app, restRoute, fn) {
             }
             throw error;
           }
-          return fn(input).then(function (implementationResult) {
+          return fn({
+                        input: input
+                      }).then(function (implementationResult) {
                       var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
                       var headers = data.headers;
                       if (headers) {

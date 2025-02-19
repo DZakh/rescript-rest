@@ -63,7 +63,7 @@ Fulfil the contract on your sever, with a type-safe Fastify integration:
 ```rescript
 let app = Fastify.make()
 
-app->Fastify.route(Contract.getPosts, input => {
+app->Fastify.route(Contract.getPosts, ({input}) => {
   queryPosts(~skip=input["skip"], ~take=input["take"], ~page=input["page"])
 })
 // ^-- Both input and return value are fully typed!
@@ -307,7 +307,7 @@ let ping = Rest.route(() => {
 })
 ```
 
-## Server Implementation
+## Server-side Integrations
 
 ### [Next.js](https://nextjs.org/)
 
@@ -375,7 +375,7 @@ And implement it on the server side:
 ```rescript
 let app = Fastify.make()
 
-app->Fastify.route(Contract.getPosts, async input => {
+app->Fastify.route(Contract.getPosts, async ({input}) => {
   // Implementation where return type is promise<'response>
 })
 
@@ -418,7 +418,7 @@ app->Fastify.register(
   },
 )
 
-app->Fastify.route(Contract.getPosts, async input => {
+app->Fastify.route(Contract.getPosts, async ({input}) => {
   // Implementation where return type is promise<'response>
 })
 

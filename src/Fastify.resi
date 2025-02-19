@@ -70,7 +70,9 @@ external listenFirstAvailableLocalPort: t => promise<string> = "listen"
 
 @send external close: t => promise<unit> = "close"
 
-let route: (t, Rest.route<'request, 'response>, 'request => promise<'response>) => unit
+type options<'input> = {input: 'input}
+
+let route: (t, Rest.route<'request, 'response>, options<'request> => promise<'response>) => unit
 
 module Swagger: {
   type options = {openapi?: OpenAPI.t}

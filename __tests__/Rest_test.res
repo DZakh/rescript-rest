@@ -115,7 +115,7 @@ asyncTest("Test simple POST request", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -199,7 +199,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(input, data)
     input
   })
@@ -365,7 +365,7 @@ asyncTest("Integration test of simple POST request", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -406,7 +406,7 @@ asyncTest("Test request with mixed body and header data", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -468,7 +468,7 @@ asyncTest("Test request with Bearer auth", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -518,7 +518,7 @@ asyncTest("Test request with Basic auth", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -564,7 +564,7 @@ asyncTest("Test simple GET request", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(getHeight, async input => {
+  app->Fastify.route(getHeight, async ({input}) => {
     t->Assert.deepEqual(input, ())
     true
   })
@@ -762,7 +762,7 @@ asyncTest("Test query params support by Fastify", async t => {
   }
 
   let app = Fastify.make()
-  app->Fastify.route(getHeight, async resVariables => {
+  app->Fastify.route(getHeight, async ({input: resVariables}) => {
     t->Assert.deepEqual(resVariables, input)
     true
   })
@@ -939,7 +939,7 @@ asyncTest("Multiple path params", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(getSubComment, async input => {
+  app->Fastify.route(getSubComment, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -1011,7 +1011,7 @@ asyncTest("Fastify server works with path containing columns", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(getSubComment, async input => {
+  app->Fastify.route(getSubComment, async ({input}) => {
     t->Assert.deepEqual(
       input,
       {
@@ -1207,7 +1207,7 @@ asyncTest("Test POST request with rawBody", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(input, Ok("[12, 123]"))
     true
   })
@@ -1246,7 +1246,7 @@ asyncTest("Test POST request with literal rawBody", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(createGame, async input => {
+  app->Fastify.route(createGame, async ({input}) => {
     t->Assert.deepEqual(input, ())
     true
   })
@@ -1312,7 +1312,7 @@ asyncTest("Fastify works with routes having multiple responses", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(getHeight, async () => {
+  app->Fastify.route(getHeight, async ({input: ()}) => {
     true
   })
   let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
@@ -1328,7 +1328,7 @@ asyncTest("Sends response without a data", async t => {
   })
 
   let app = Fastify.make()
-  app->Fastify.route(getHeight, async () => ())
+  app->Fastify.route(getHeight, async _ => ())
   let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
   t->Assert.deepEqual(await client.call(getHeight, ()), ())
 })
