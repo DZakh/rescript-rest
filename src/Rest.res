@@ -644,6 +644,18 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
   path.contents
 }
 
+let url = (route, input, ~baseUrl="") => {
+  let {pathItems, inputSchema} = route->params
+  let data = input->S.reverseConvertOrThrow(inputSchema)->Obj.magic
+  getCompletePath(
+    ~baseUrl,
+    ~pathItems,
+    ~maybeQuery=data["query"],
+    ~maybeParams=data["params"],
+    ~jsonQuery=false,
+  )
+}
+
 let fetch = (
   type input response,
   route: route<input, response>,

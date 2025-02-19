@@ -166,6 +166,8 @@ type client = {
   jsonQuery: bool,
 }
 
+let url: (route<'input, 'response>, 'input, ~baseUrl: string=?) => string
+
 let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
 
 let fetch: (

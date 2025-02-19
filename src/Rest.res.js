@@ -418,6 +418,13 @@ function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery)
   return path;
 }
 
+function url(route, input, baseUrlOpt) {
+  var baseUrl = baseUrlOpt !== undefined ? baseUrlOpt : "";
+  var match = params(route);
+  var data = S$RescriptSchema.reverseConvertOrThrow(input, match.inputSchema);
+  return getCompletePath(baseUrl, match.pathItems, data.query, data.params, false);
+}
+
 function $$fetch$1(route, baseUrl, input, fetcherOpt, jsonQueryOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
   var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
@@ -488,6 +495,7 @@ var $$Response = {};
 exports.ApiFetcher = ApiFetcher;
 exports.$$Response = $$Response;
 exports.params = params;
+exports.url = url;
 exports.client = client;
 exports.$$fetch = $$fetch$1;
 /* bearerAuthSchema Not a pure module */

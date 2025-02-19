@@ -432,6 +432,34 @@ Console.log("OpenAPI reference: http://localhost:3000/reference")
 
 Also, you can use the `Fastify.Swagger.generate` function to get the OpenAPI JSON.
 
+## Useful Utils
+
+### `Rest.url`
+
+`Rest.url` is a helper function which builds a complete URL for a given route and input.
+
+```rescript
+let getPosts = Rest.route(() => {
+  path: "/posts",
+  method: Get,
+  input: s => {
+    "skip": s.query("skip", S.int),
+    "take": s.query("take", S.int),
+  },
+  responses: [
+    s => s.data(S.array(postSchema)),
+  ],
+})
+
+let url = Rest.url(
+  getPosts,
+  {
+    "skip": 0,
+    "take": 10,
+  }
+) //? /posts?skip=0&take=10
+```
+
 ## Planned Features
 
 - [x] Support query params
