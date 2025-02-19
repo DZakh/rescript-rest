@@ -1,6 +1,6 @@
 {
   "name": "rescript-rest",
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "description": "😴 ReScript RPC-like client, contract, and server implementation for a pure REST API",
   "keywords": [
     "rest",
@@ -47,6 +47,7 @@
     "ava": "6.2.0",
     "c8": "10.1.2",
     "fastify": "5.1.0",
+    "swr": "2.3.2",
     "rescript": "11.1.4",
     "rescript-schema": "9.0.1"
   },
@@ -54,10 +55,14 @@
     "@fastify/swagger": "9.x",
     "@scalar/fastify-api-reference": "^1.25.60",
     "fastify": "5.x",
+    "swr": "^2.3.2",
     "rescript": "11.x",
     "rescript-schema": "^9.0.0"
   },
   "peerDependenciesMeta": {
+    "swr": {
+      "optional": true
+    },
     "fastify": {
       "optional": true
     },

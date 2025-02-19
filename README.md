@@ -58,7 +58,21 @@ let result = await Contract.getPosts->Rest.fetch(
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": "1"}` headers
 ```
 
-Fulfil the contract on your sever, with a type-safe Fastify integration:
+Or use the [SWR](https://swr.vercel.app/) client-side integration and consume your data in React components:
+
+```rescript
+@react.component
+let make = () => {
+  let posts = Contract.getPosts->Swr.use(~input={"skip": 0, "take": 10, "page": Some(1)})
+  switch posts {
+  | {error: Some(_)} => "Something went wrong!"->React.string
+  | {data: None} => "Loading..."->React.string
+  | {data: Some(posts)} => <Posts posts />
+  }
+}
+```
+
+Fulfil the contract on your sever, with a type-safe Fastify or Next.js integrations:
 
 ```rescript
 let app = Fastify.make()
@@ -307,6 +321,33 @@ let ping = Rest.route(() => {
 })
 ```
 
+## Client-side Integrations
+
+### [SWR](https://swr.vercel.app/)
+
+React Hooks for Data Fetching - With SWR, components will get a stream of data updates constantly and automatically.
+And the UI will be always fast and reactive.
+
+```rescript
+@react.component
+let make = () => {
+  let posts = Contract.getPosts->Swr.use(~input={"skip": 0, "take": 10, "page": Some(1)})
+  switch posts {
+  | {error: Some(_)} => "Something went wrong!"->React.string
+  | {data: None} => "Loading..."->React.string
+  | {data: Some(posts)} => <Posts posts />
+  }
+}
+```
+
+It'll automatically refetch the data when the input parameters change. (⚠️ Currently supported only for `query` and `path` fields)
+
+#### Current Limitations
+
+- Supports only `useSwr` hook with GET method routes
+- Header field updates don't trigger refetching
+- Please create a PR to extend available bindings
+
 ## Server-side Integrations
 
 ### [Next.js](https://nextjs.org/)
@@ -349,7 +390,7 @@ let posts = await Contract.getPosts->Rest.fetch(
 )
 ```
 
-#### Known Limitations
+#### Current Limitations
 
 - Doesn't support path parameters
 - Doesn't support raw body
@@ -384,7 +425,7 @@ let _ = app->Fastify.listen({port: 3000})
 
 > 🧠 `rescript-rest` ships with minimal bindings for Fastify to improve the integration experience. If you need more advanced configuration, please open an issue or PR.
 
-#### Known Limitations
+#### Current Limitations
 
 - Doesn't support array/object-like query params
 - Has issues with paths with `:`
