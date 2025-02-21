@@ -342,6 +342,12 @@ let make = () => {
 
 It'll automatically refetch the data when the input parameters change. (⚠️ Currently supported only for `query` and `path` fields)
 
+#### Polling
+
+```rescript
+Contract.getTodos->Swr.use(~input=(), ~options={ refreshInterval: 1000 })
+```
+
 #### Current Limitations
 
 - Supports only `useSwr` hook with GET method routes
