@@ -402,7 +402,7 @@ To make Raw Body work with Next.js handler, you need to disable the automatic bo
 
 > 🧠 This example uses another great library [ReScript Stripe](https://github.com/enviodev/rescript-stripe)
 
-````rescript
+```rescript
 let stripe = Stripe.make("sk_test_...")
 
 type input = {
@@ -571,6 +571,5 @@ let url = Rest.url(
 - [x] Generate OpenAPI from Contract
 - [ ] Generate Contract from OpenAPI
 - [x] Server implementation with Fastify
-- [ ] NextJs integration
+- [x] NextJs integration
 - [ ] Add TS/JS support
-````
