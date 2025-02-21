@@ -2,6 +2,16 @@
 
 open RescriptSchema
 
+module Promise = {
+  type t<+'a> = promise<'a>
+
+  @new
+  external make: (('a => unit, Js.Exn.t => unit) => unit) => t<'a> = "Promise"
+
+  @send
+  external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
+}
+
 module Exn = {
   type error
 
@@ -49,6 +59,13 @@ type rec res = private {
   send: Js.Json.t => reply,
 }
 
+type apiConfig = {
+  bodyParser?: bool,
+  externalResolver?: bool,
+  responseLimit?: bool,
+}
+type config = {maxDuration?: int, api?: apiConfig}
+
 type options<'input> = {
   input: 'input,
   req: req,
@@ -58,7 +75,7 @@ type options<'input> = {
 let handler = (route, implementation) => {
   let {pathItems, definition, isRawBody, responseSchema, inputSchema} = route->Rest.params
 
-  // TOD: Validate that we match the req path
+  // TODO: Validate that we match the req path
   pathItems->Js.Array2.forEach(pathItem => {
     switch pathItem {
     | Param(param) =>
@@ -68,16 +85,29 @@ let handler = (route, implementation) => {
     | Static(_) => ()
     }
   })
-  if isRawBody {
-    panic(
-      `Route ${definition.path} contains a raw body which is not supported by Next.js handler yet`,
-    )
-  }
 
   async (req, res) => {
     if req.method !== definition.method {
       res.status(404).end()
     } else {
+      if req.body === %raw(`undefined`) {
+        let rawBody = ref("")
+        let _ = await Promise.make((resolve, reject) => {
+          let _ = (req->Obj.magic)["on"]("data", chunk => {
+            rawBody := rawBody.contents ++ chunk
+          })
+          let _ = (req->Obj.magic)["on"]("end", resolve)
+          let _ = (req->Obj.magic)["on"]("error", reject)
+        })
+        (req->Obj.magic)["body"] = isRawBody
+          ? rawBody.contents->Obj.magic
+          : Js.Json.parseExn(rawBody.contents)
+      } else if isRawBody {
+        Js.Exn.raiseError(
+          "Routes with Raw Body require to disable body parser for your handler. Add `let config: RestNextJs.config = {api: {bodyParser: false}}` to the file with your handler to make it work.",
+        )
+      }
+
       switch req->S.parseOrThrow(inputSchema) {
       | input =>
         try {
@@ -104,7 +134,8 @@ let handler = (route, implementation) => {
             `Unexpected error in the ${definition.path} route: ${error->S.Error.message}`,
           )
         }
-      | exception S.Raised(error) => res.status(400).send(error->S.Error.message->Js.Json.string)
+      | exception S.Raised(error) =>
+        res.status(400).json({"error": error->S.Error.message->Js.Json.string}->Obj.magic)
       }
     }
   }

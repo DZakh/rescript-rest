@@ -396,10 +396,63 @@ let posts = await Contract.getPosts->Rest.fetch(
 )
 ```
 
+#### Raw Body for Webhooks
+
+To make Raw Body work with Next.js handler, you need to disable the automatic body parsing. One use case for this is to allow you to verify the raw body of a **webhook** request, for example [from Stripe](https://docs.stripe.com/webhooks).
+
+> 🧠 This example uses another great library [ReScript Stripe](https://github.com/enviodev/rescript-stripe)
+
+````rescript
+let stripe = Stripe.make("sk_test_...")
+
+type input = {
+  body: string,
+  sig: string,
+}
+let route = Rest.route(() => {
+  path: "/api/stripe/webhook",
+  method: Post,
+  input: s => {
+    body: s.rawBody(S.string),
+    sig: s.header("stripe-signature", S.string),
+  },
+  responses: [
+    s => {
+      s.status(200)
+      let _ = s.data(S.literal({"received": true}))
+      Ok()
+    },
+    s => {
+      s.status(400)
+      Error(s.data(S.string))
+    },
+  ],
+})
+
+// Disable bodyParsing to make Raw Body work
+let config: RestNextJs.config = {api: {bodyParser: false}}
+
+let default = RestNextJs.handler(route, async ({input}) => {
+  stripe
+  ->Stripe.Webhook.constructEvent(
+    ~body=input.body,
+    ~sig=input.sig,
+    // You can find your endpoint's secret in your webhook settings
+    ~secret="whsec_...",
+  )
+  ->Result.map(event => {
+    switch event {
+    | CustomerSubscriptionCreated({data: {object: subscription}}) =>
+      await processSubscription(subscription)
+    | _ => ()
+    }
+  })
+})
+```
+
 #### Current Limitations
 
 - Doesn't support path parameters
-- Doesn't support raw body
 
 ### [Fastify](https://fastify.dev/)
 
@@ -520,3 +573,4 @@ let url = Rest.url(
 - [x] Server implementation with Fastify
 - [ ] NextJs integration
 - [ ] Add TS/JS support
+````

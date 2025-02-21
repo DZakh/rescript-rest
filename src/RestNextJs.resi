@@ -31,6 +31,13 @@ type rec res = private {
   send: Js.Json.t => reply,
 }
 
+type apiConfig = {
+  bodyParser?: bool,
+  externalResolver?: bool,
+  responseLimit?: bool,
+}
+type config = {maxDuration?: int, api?: apiConfig}
+
 type options<'input> = {
   input: 'input,
   req: req,
