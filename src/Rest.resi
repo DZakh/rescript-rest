@@ -101,6 +101,7 @@ module Response: {
     data: 'value. S.t<'value> => 'value,
     field: 'value. (string, S.t<'value>) => 'value,
     header: 'value. (string, S.t<'value>) => 'value,
+    redirect: 'value. S.t<'value> => 'value,
   }
 }
 

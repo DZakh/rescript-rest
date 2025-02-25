@@ -7,9 +7,6 @@ module Promise = {
 
   @new
   external make: (('a => unit, Js.Exn.t => unit) => unit) => t<'a> = "Promise"
-
-  @send
-  external thenResolve: (t<'a>, 'a => 'b) => t<'b> = "then"
 }
 
 module Exn = {

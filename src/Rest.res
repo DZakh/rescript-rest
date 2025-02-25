@@ -162,6 +162,7 @@ module Response = {
     data: 'value. S.t<'value> => 'value,
     field: 'value. (string, S.t<'value>) => 'value,
     header: 'value. (string, S.t<'value>) => 'value,
+    redirect: 'value. S.t<'value> => 'value,
   }
 
   type t<'response> = {
@@ -463,12 +464,20 @@ let params = route => {
           emptyData: true,
         }
         let schema = S.object(s => {
+          let status = status => {
+            builder.status = Some(status)
+            let status = status->(Obj.magic: int => Response.status)
+            responsesMap->Response.register(status, builder)
+            s.tag("status", status)
+          }
+          let header = (fieldName, schema) => {
+            s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
+          }
           let definition = r({
-            status: status => {
-              builder.status = Some(status)
-              let status = status->(Obj.magic: int => Response.status)
-              responsesMap->Response.register(status, builder)
-              s.tag("status", status)
+            status,
+            redirect: schema => {
+              status(307)
+              header("location", coerceSchema(schema))
             },
             description: d => builder.description = Some(d),
             field: (fieldName, schema) => {
@@ -483,9 +492,7 @@ let params = route => {
                 s.field("data", schema)
               }
             },
-            header: (fieldName, schema) => {
-              s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
-            },
+            header,
           })
           if builder.emptyData {
             s.tag("data", %raw(`null`))

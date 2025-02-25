@@ -8,6 +8,7 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function handler(route, implementation) {
   var match = Rest.params(route);
+  var isRawBody = match.isRawBody;
   var responseSchema = match.responseSchema;
   var inputSchema = match.inputSchema;
   var definition = match.definition;
@@ -17,12 +18,24 @@ function handler(route, implementation) {
         }
         throw new Error("[rescript-rest] " + ("Route " + definition.path + " contains a path param " + pathItem.name + " which is not supported by Next.js handler yet"));
       });
-  if (match.isRawBody) {
-    throw new Error("[rescript-rest] " + ("Route " + definition.path + " contains a raw body which is not supported by Next.js handler yet"));
-  }
   return async function (req, res) {
     if (req.method !== definition.method) {
       return res.status(404).end();
+    }
+    if (req.body === undefined) {
+      var rawBody = {
+        contents: ""
+      };
+      await new Promise((function (resolve, reject) {
+              req.on("data", (function (chunk) {
+                      rawBody.contents = rawBody.contents + chunk;
+                    }));
+              req.on("end", resolve);
+              req.on("error", reject);
+            }));
+      req.body = isRawBody ? rawBody.contents : JSON.parse(rawBody.contents);
+    } else if (isRawBody) {
+      Js_exn.raiseError("Routes with Raw Body require to disable body parser for your handler. Add `let config: RestNextJs.config = {api: {bodyParser: false}}` to the file with your handler to make it work.");
     }
     var input;
     try {
@@ -31,7 +44,9 @@ function handler(route, implementation) {
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
       if (error.RE_EXN_ID === S$RescriptSchema.Raised) {
-        return res.status(400).send(S$RescriptSchema.$$Error.message(error._1));
+        return res.status(400).json({
+                    error: S$RescriptSchema.$$Error.message(error._1)
+                  });
       }
       throw error;
     }

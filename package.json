@@ -1,6 +1,6 @@
 {
   "name": "rescript-rest",
-  "version": "2.0.0-rc.4",
+  "version": "2.0.0-rc.5",
   "description": "😴 ReScript RPC-like client, contract, and server implementation for a pure REST API",
   "keywords": [
     "rest",
@@ -37,7 +37,7 @@
     ]
   },
   "dependencies": {
-    "rescript-json-schema": "^7.1.0",
+    "rescript-json-schema": "^7.2.0",
     "rescript-openapi": "^0.4.0"
   },
   "devDependencies": {

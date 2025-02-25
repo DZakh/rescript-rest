@@ -317,6 +317,36 @@ let ping = Rest.route(() => {
 })
 ```
 
+## Temporary Redirect
+
+You can define a redirect using Route response definition:
+
+```rescript
+let route = Rest.route(() => {
+  path: "/redirect",
+  method: Get,
+  summary: "Redirect to another URL",
+  description: `This endpoint redirects the client to "/new-destination" using an HTTP "307 Temporary Redirect".
+                The request method (e.g., "GET", "POST") is preserved.`,
+  input: _ => (),
+  responses: [
+    s => {
+      s.description("Temporary redirect to another URL.")
+      // Use literal to hardcode the value
+      let _ = s.redirect(S.literal("/new-destination"))
+      // Or string schema to dynamically set it
+      s.redirect(S.string)
+    }
+    s => {
+      s.description("Bad request.")
+      s.status(400)
+    }
+  ],
+})
+```
+
+In a nutshell, the `redirect` function is a wrapper around `s.status(307)` and `s.header("location", schema)`.
+
 ## Client-side Integrations
 
 ### [SWR](https://swr.vercel.app/)
@@ -405,16 +435,12 @@ To make Raw Body work with Next.js handler, you need to disable the automatic bo
 ```rescript
 let stripe = Stripe.make("sk_test_...")
 
-type input = {
-  body: string,
-  sig: string,
-}
 let route = Rest.route(() => {
   path: "/api/stripe/webhook",
   method: Post,
   input: s => {
-    body: s.rawBody(S.string),
-    sig: s.header("stripe-signature", S.string),
+    "body": s.rawBody(S.string),
+    "sig": s.header("stripe-signature", S.string),
   },
   responses: [
     s => {
@@ -435,8 +461,8 @@ let config: RestNextJs.config = {api: {bodyParser: false}}
 let default = RestNextJs.handler(route, async ({input}) => {
   stripe
   ->Stripe.Webhook.constructEvent(
-    ~body=input.body,
-    ~sig=input.sig,
+    ~body=input["body"],
+    ~sig=input["sig"],
     // You can find your endpoint's secret in your webhook settings
     ~secret="whsec_...",
   )

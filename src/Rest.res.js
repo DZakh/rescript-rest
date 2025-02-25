@@ -283,12 +283,16 @@ function params(route) {
           emptyData: true
         };
         var schema = S$RescriptSchema.object(function (s) {
+              var status = function (status$1) {
+                builder.status = status$1;
+                register(responsesMap, status$1, builder);
+                s.tag("status", status$1);
+              };
+              var header = function (fieldName, schema) {
+                return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
+              };
               var definition = r({
-                    status: (function (status) {
-                        builder.status = status;
-                        register(responsesMap, status, builder);
-                        s.tag("status", status);
-                      }),
+                    status: status,
                     description: (function (d) {
                         builder.description = d;
                       }),
@@ -304,8 +308,10 @@ function params(route) {
                         builder.emptyData = false;
                         return s.nested("data").f(fieldName, schema);
                       }),
-                    header: (function (fieldName, schema) {
-                        return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
+                    header: header,
+                    redirect: (function (schema) {
+                        status(307);
+                        return header("location", coerceSchema(schema));
                       })
                   });
               if (builder.emptyData) {
