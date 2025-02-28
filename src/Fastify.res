@@ -1,3 +1,5 @@
+@@uncurried
+
 open RescriptSchema
 
 module Obj = {

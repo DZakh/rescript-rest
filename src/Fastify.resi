@@ -1,3 +1,5 @@
+@@uncurried
+
 type t
 type plugin<'a>
 

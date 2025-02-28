@@ -1,3 +1,5 @@
+@@uncurried
+
 type return<'data> = {
   data: option<'data>,
   error: option<exn>,
