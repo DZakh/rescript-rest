@@ -9,7 +9,7 @@ var Caml_option = require("rescript/lib/js/caml_option.js");
 
 function use(route, input, options, client) {
   var match = Rest.params(route);
-  if (match.definition.method !== "GET") {
+  if (match.method !== "GET") {
     Js_exn.raiseError("[rescript-rest] Only GET requests are supported by Swr");
   }
   return Swr(input !== undefined ? Rest.url(route, Caml_option.valFromOption(input), client !== undefined ? client.baseUrl : undefined) : null, (function (param) {

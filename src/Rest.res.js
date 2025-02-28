@@ -210,153 +210,205 @@ function params(route) {
   if (params$1 !== undefined) {
     return params$1;
   }
-  var routeDefinition = route();
-  var pathItems = [];
-  var pathParams = {};
-  parsePath(routeDefinition.path, pathItems, pathParams);
-  var isRawBody = false;
-  var inputSchema = S$RescriptSchema.object(function (s) {
-        return routeDefinition.input({
-                    field: (function (fieldName, schema) {
-                        return s.nested("body").f(fieldName, schema);
-                      }),
-                    body: (function (schema) {
-                        if (isNestedFlattenSupported(schema)) {
-                          return s.nested("body").flatten(schema);
-                        } else {
+  var definition = route();
+  var params$2;
+  if (definition.output) {
+    var p = definition.operationId;
+    var path = "/" + (
+      p !== undefined ? p : route.name
+    );
+    var inputSchema = S$RescriptSchema.object(function (s) {
+          return s.f("body", definition.input);
+        });
+    stripInPlace(inputSchema);
+    inputSchema.f = undefined;
+    var outputSchema = S$RescriptSchema.object(function (s) {
+          return s.f("data", definition.output);
+        });
+    stripInPlace(outputSchema);
+    outputSchema.f = undefined;
+    var response_status = 200;
+    var response_dataSchema = definition.input;
+    var response = {
+      status: response_status,
+      description: undefined,
+      dataSchema: response_dataSchema,
+      emptyData: false,
+      schema: outputSchema
+    };
+    var responsesMap = {};
+    responsesMap["200"] = response;
+    params$2 = {
+      method: "POST",
+      path: path,
+      pathItems: [path],
+      inputSchema: inputSchema,
+      outputSchema: outputSchema,
+      responses: [response],
+      responsesMap: responsesMap,
+      isRawBody: false,
+      summary: definition.summary,
+      description: definition.description,
+      deprecated: definition.deprecated,
+      operationId: definition.operationId,
+      tags: definition.tags,
+      externalDocs: definition.externalDocs
+    };
+  } else {
+    var pathItems = [];
+    var pathParams = {};
+    parsePath(definition.path, pathItems, pathParams);
+    var isRawBody = false;
+    var inputSchema$1 = S$RescriptSchema.object(function (s) {
+          return definition.input({
+                      field: (function (fieldName, schema) {
+                          return s.nested("body").f(fieldName, schema);
+                        }),
+                      body: (function (schema) {
+                          if (isNestedFlattenSupported(schema)) {
+                            return s.nested("body").flatten(schema);
+                          } else {
+                            return s.f("body", schema);
+                          }
+                        }),
+                      rawBody: (function (schema) {
+                          var match = schema.t;
+                          var isNonStringBased;
+                          isNonStringBased = typeof match !== "object" ? (
+                              match === "string" ? false : true
+                            ) : (
+                              match.TAG === "literal" && match._0.kind === "String" ? false : true
+                            );
+                          if (isNonStringBased) {
+                            throw new Error("[rescript-rest] Only string-based schemas are allowed in rawBody");
+                          }
+                          ((isRawBody = true));
                           return s.f("body", schema);
-                        }
-                      }),
-                    rawBody: (function (schema) {
-                        var match = schema.t;
-                        var isNonStringBased;
-                        isNonStringBased = typeof match !== "object" ? (
-                            match === "string" ? false : true
-                          ) : (
-                            match.TAG === "literal" && match._0.kind === "String" ? false : true
-                          );
-                        if (isNonStringBased) {
-                          throw new Error("[rescript-rest] Only string-based schemas are allowed in rawBody");
-                        }
-                        ((isRawBody = true));
-                        return s.f("body", schema);
-                      }),
-                    header: (function (fieldName, schema) {
-                        return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
-                      }),
-                    query: (function (fieldName, schema) {
-                        return s.nested("query").f(fieldName, coerceSchema(schema));
-                      }),
-                    param: (function (fieldName, schema) {
-                        if (!pathParams[fieldName]) {
-                          throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
-                        }
-                        return s.nested("params").f(fieldName, coerceSchema(schema));
-                      }),
-                    auth: (function (auth) {
-                        var tmp;
-                        tmp = auth === "Bearer" ? bearerAuthSchema : basicAuthSchema;
-                        return s.nested("headers").f("authorization", tmp);
-                      })
-                  });
-      });
-  stripInPlace(inputSchema);
-  inputSchema.f = undefined;
-  var match = getSchemaField(inputSchema, "headers");
-  if (match !== undefined) {
-    var schema = match.schema;
-    stripInPlace(schema);
-    schema.f = undefined;
+                        }),
+                      header: (function (fieldName, schema) {
+                          return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
+                        }),
+                      query: (function (fieldName, schema) {
+                          return s.nested("query").f(fieldName, coerceSchema(schema));
+                        }),
+                      param: (function (fieldName, schema) {
+                          if (!pathParams[fieldName]) {
+                            throw new Error("[rescript-rest] " + ("Path parameter \"" + fieldName + "\" is not defined in the path"));
+                          }
+                          return s.nested("params").f(fieldName, coerceSchema(schema));
+                        }),
+                      auth: (function (auth) {
+                          var tmp;
+                          tmp = auth === "Bearer" ? bearerAuthSchema : basicAuthSchema;
+                          return s.nested("headers").f("authorization", tmp);
+                        })
+                    });
+        });
+    stripInPlace(inputSchema$1);
+    inputSchema$1.f = undefined;
+    var match = getSchemaField(inputSchema$1, "headers");
+    if (match !== undefined) {
+      var schema = match.schema;
+      stripInPlace(schema);
+      schema.f = undefined;
+    }
+    var match$1 = getSchemaField(inputSchema$1, "params");
+    if (match$1 !== undefined) {
+      match$1.schema.f = undefined;
+    }
+    var match$2 = getSchemaField(inputSchema$1, "query");
+    if (match$2 !== undefined) {
+      match$2.schema.f = undefined;
+    }
+    var responsesMap$1 = {};
+    var responses = [];
+    definition.responses.forEach(function (r) {
+          var builder = {
+            emptyData: true
+          };
+          var schema = S$RescriptSchema.object(function (s) {
+                var status = function (status$1) {
+                  builder.status = status$1;
+                  register(responsesMap$1, status$1, builder);
+                  s.tag("status", status$1);
+                };
+                var header = function (fieldName, schema) {
+                  return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
+                };
+                var definition = r({
+                      status: status,
+                      description: (function (d) {
+                          builder.description = d;
+                        }),
+                      data: (function (schema) {
+                          builder.emptyData = false;
+                          if (isNestedFlattenSupported(schema)) {
+                            return s.nested("data").flatten(schema);
+                          } else {
+                            return s.f("data", schema);
+                          }
+                        }),
+                      field: (function (fieldName, schema) {
+                          builder.emptyData = false;
+                          return s.nested("data").f(fieldName, schema);
+                        }),
+                      header: header,
+                      redirect: (function (schema) {
+                          status(307);
+                          return header("location", coerceSchema(schema));
+                        })
+                    });
+                if (builder.emptyData) {
+                  s.tag("data", null);
+                }
+                return definition;
+              });
+          if (builder.status === undefined) {
+            register(responsesMap$1, "default", builder);
+          }
+          stripInPlace(schema);
+          schema.f = undefined;
+          var dataSchema = getSchemaField(schema, "data").schema;
+          builder.dataSchema = dataSchema;
+          var match = dataSchema.t;
+          if (typeof match === "object" && match.TAG === "literal") {
+            var dataTypeValidation = dataSchema.f;
+            schema.f = (function (b, inputVar) {
+                return dataTypeValidation(b, inputVar + ".data");
+              });
+          }
+          var match$1 = getSchemaField(schema, "headers");
+          if (match$1 !== undefined) {
+            var schema$1 = match$1.schema;
+            stripInPlace(schema$1);
+            schema$1.f = undefined;
+          }
+          builder.schema = schema;
+          responses.push(builder);
+        });
+    if (responses.length === 0) {
+      throw new Error("[rescript-rest] At least single response should be registered");
+    }
+    params$2 = {
+      method: definition.method,
+      path: definition.path,
+      pathItems: pathItems,
+      inputSchema: inputSchema$1,
+      outputSchema: S$RescriptSchema.union(responses.map(function (r) {
+                return r.schema;
+              })),
+      responses: responses,
+      responsesMap: responsesMap$1,
+      isRawBody: isRawBody,
+      summary: definition.summary,
+      description: definition.description,
+      deprecated: definition.deprecated,
+      operationId: definition.operationId,
+      tags: definition.tags,
+      externalDocs: definition.externalDocs,
+      jsonQuery: definition.jsonQuery
+    };
   }
-  var match$1 = getSchemaField(inputSchema, "params");
-  if (match$1 !== undefined) {
-    match$1.schema.f = undefined;
-  }
-  var match$2 = getSchemaField(inputSchema, "query");
-  if (match$2 !== undefined) {
-    match$2.schema.f = undefined;
-  }
-  var responsesMap = {};
-  var responses = [];
-  routeDefinition.responses.forEach(function (r) {
-        var builder = {
-          emptyData: true
-        };
-        var schema = S$RescriptSchema.object(function (s) {
-              var status = function (status$1) {
-                builder.status = status$1;
-                register(responsesMap, status$1, builder);
-                s.tag("status", status$1);
-              };
-              var header = function (fieldName, schema) {
-                return s.nested("headers").f(fieldName.toLowerCase(), coerceSchema(schema));
-              };
-              var definition = r({
-                    status: status,
-                    description: (function (d) {
-                        builder.description = d;
-                      }),
-                    data: (function (schema) {
-                        builder.emptyData = false;
-                        if (isNestedFlattenSupported(schema)) {
-                          return s.nested("data").flatten(schema);
-                        } else {
-                          return s.f("data", schema);
-                        }
-                      }),
-                    field: (function (fieldName, schema) {
-                        builder.emptyData = false;
-                        return s.nested("data").f(fieldName, schema);
-                      }),
-                    header: header,
-                    redirect: (function (schema) {
-                        status(307);
-                        return header("location", coerceSchema(schema));
-                      })
-                  });
-              if (builder.emptyData) {
-                s.tag("data", null);
-              }
-              return definition;
-            });
-        if (builder.status === undefined) {
-          register(responsesMap, "default", builder);
-        }
-        stripInPlace(schema);
-        schema.f = undefined;
-        var dataSchema = getSchemaField(schema, "data").schema;
-        builder.dataSchema = dataSchema;
-        var match = dataSchema.t;
-        if (typeof match === "object" && match.TAG === "literal") {
-          var dataTypeValidation = dataSchema.f;
-          schema.f = (function (b, inputVar) {
-              return dataTypeValidation(b, inputVar + ".data");
-            });
-        }
-        var match$1 = getSchemaField(schema, "headers");
-        if (match$1 !== undefined) {
-          var schema$1 = match$1.schema;
-          stripInPlace(schema$1);
-          schema$1.f = undefined;
-        }
-        builder.schema = schema;
-        responses.push(builder);
-      });
-  if (responses.length === 0) {
-    throw new Error("[rescript-rest] At least single response should be registered");
-  }
-  var params_responseSchema = S$RescriptSchema.union(responses.map(function (r) {
-            return r.schema;
-          }));
-  var params$2 = {
-    definition: routeDefinition,
-    pathItems: pathItems,
-    inputSchema: inputSchema,
-    responseSchema: params_responseSchema,
-    responses: responses,
-    responsesMap: responsesMap,
-    isRawBody: isRawBody
-  };
   route._rest = params$2;
   return params$2;
 }
@@ -439,7 +491,6 @@ var $$global = {
 function $$fetch$1(route, input, client) {
   var match = params(route);
   var responsesMap = match.responsesMap;
-  var definition = match.definition;
   var client$1;
   if (client !== undefined) {
     client$1 = client;
@@ -448,7 +499,7 @@ function $$fetch$1(route, input, client) {
     if (client$2 !== undefined) {
       client$1 = client$2;
     } else {
-      throw new Error("[rescript-rest] " + ("Client is not set for the " + definition.path + " fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments"));
+      throw new Error("[rescript-rest] " + ("Client is not set for the " + match.path + " fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments"));
     }
   }
   var data = S$RescriptSchema.reverseConvertOrThrow(input, match.inputSchema);
@@ -464,8 +515,8 @@ function $$fetch$1(route, input, client) {
   return client$1.fetcher({
                 body: data.body,
                 headers: data.headers,
-                method: definition.method,
-                path: getCompletePath(client$1.baseUrl, match.pathItems, data.query, data.params, definition.jsonQuery)
+                method: match.method,
+                path: getCompletePath(client$1.baseUrl, match.pathItems, data.query, data.params, match.jsonQuery)
               }).then(function (fetcherResponse) {
               var responseStatus = fetcherResponse.status;
               var response = responsesMap[responseStatus] || responsesMap[(responseStatus / 100 | 0) + "XX"] || responsesMap["default"];

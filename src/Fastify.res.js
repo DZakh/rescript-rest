@@ -9,18 +9,17 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 
 function route(app, restRoute, fn) {
   app.register(function (app, param, done) {
-        var match = Rest.params(restRoute);
-        var responseSchema = match.responseSchema;
-        var inputSchema = match.inputSchema;
-        var pathItems = match.pathItems;
-        var definition = match.definition;
+        var params = Rest.params(restRoute);
+        var outputSchema = params.outputSchema;
+        var inputSchema = params.inputSchema;
+        var pathItems = params.pathItems;
         var url = "";
         for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
           var pathItem = pathItems[idx];
           url = typeof pathItem === "string" ? url + pathItem : url + ":" + pathItem.name;
         }
         var routeSchemaResponses = {};
-        match.responses.forEach(function (r) {
+        params.responses.forEach(function (r) {
               var status = r.status;
               var status$1 = status !== undefined ? status : "default";
               var content = {};
@@ -35,13 +34,13 @@ function route(app, restRoute, fn) {
                 content: content
               };
             });
-        var routeSchema_description = definition.description;
-        var routeSchema_summary = definition.summary;
-        var routeSchema_deprecated = definition.deprecated;
+        var routeSchema_description = params.description;
+        var routeSchema_summary = params.summary;
+        var routeSchema_deprecated = params.deprecated;
         var routeSchema_response = routeSchemaResponses;
-        var routeSchema_operationId = definition.operationId;
-        var routeSchema_tags = definition.tags;
-        var routeSchema_externalDocs = definition.externalDocs;
+        var routeSchema_operationId = params.operationId;
+        var routeSchema_tags = params.tags;
+        var routeSchema_externalDocs = params.externalDocs;
         var routeSchema = {
           description: routeSchema_description,
           summary: routeSchema_summary,
@@ -51,7 +50,7 @@ function route(app, restRoute, fn) {
           tags: routeSchema_tags,
           externalDocs: routeSchema_externalDocs
         };
-        var routeOptions_method = definition.method;
+        var routeOptions_method = params.method;
         var routeOptions_handler = function (request, reply) {
           var input;
           try {
@@ -73,7 +72,7 @@ function route(app, restRoute, fn) {
           return fn({
                         input: input
                       }).then(function (implementationResult) {
-                      var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
+                      var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, outputSchema);
                       var headers = data.headers;
                       if (headers) {
                         reply.headers(headers);
@@ -97,7 +96,7 @@ function route(app, restRoute, fn) {
             }
             var jsonSchema = JSONSchema.make(item.schema);
             if (jsonSchema.TAG !== "Ok") {
-              return Js_exn.raiseError("Failed to create JSON-Schema for " + $$location + " of " + definition.method + " " + definition.path + " route. Error: " + jsonSchema._0);
+              return Js_exn.raiseError("Failed to create JSON-Schema for " + $$location + " of " + params.method + " " + params.path + " route. Error: " + jsonSchema._0);
             }
             routeSchema[$$location] = jsonSchema._0;
           };
@@ -111,7 +110,7 @@ function route(app, restRoute, fn) {
                 return true;
               };
             });
-        if (match.isRawBody) {
+        if (params.isRawBody) {
           app.addContentTypeParser("application/json", {
                 parseAs: "string"
               }, (function (_req, data, done) {

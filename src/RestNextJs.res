@@ -70,21 +70,21 @@ type options<'input> = {
 }
 
 let handler = (route, implementation) => {
-  let {pathItems, definition, isRawBody, responseSchema, inputSchema} = route->Rest.params
+  let {pathItems, path, method, isRawBody, outputSchema, inputSchema} = route->Rest.params
 
   // TODO: Validate that we match the req path
   pathItems->Js.Array2.forEach(pathItem => {
     switch pathItem {
     | Param(param) =>
       panic(
-        `Route ${definition.path} contains a path param ${param.name} which is not supported by Next.js handler yet`,
+        `Route ${path} contains a path param ${param.name} which is not supported by Next.js handler yet`,
       )
     | Static(_) => ()
     }
   })
 
   async (req, res) => {
-    if req.method !== definition.method {
+    if req.method !== method {
       res.status(404).end()
     } else {
       if req.body === %raw(`undefined`) {
@@ -113,7 +113,7 @@ let handler = (route, implementation) => {
             res,
             input,
           })
-          let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
+          let data: {..} = implementationResult->S.reverseConvertOrThrow(outputSchema)->Obj.magic
           let headers: option<dict<string>> = data["headers"]
           switch headers {
           | Some(headers) =>
@@ -127,9 +127,7 @@ let handler = (route, implementation) => {
           res.status(%raw(`data.status || 200`)).json(data["data"])
         } catch {
         | S.Raised(error) =>
-          Js.Exn.raiseError(
-            `Unexpected error in the ${definition.path} route: ${error->S.Error.message}`,
-          )
+          Js.Exn.raiseError(`Unexpected error in the ${path} route: ${error->S.Error.message}`)
         }
       | exception S.Raised(error) =>
         res.status(400).json({"error": error->S.Error.message->Js.Json.string}->Obj.magic)

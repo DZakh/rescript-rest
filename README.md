@@ -40,7 +40,7 @@ let getPosts = Rest.route(() => {
 })
 ```
 
-Set an endpoint your fetch calls should use:
+In the same file set an endpoint your fetch calls should use:
 
 ```rescript
 // Contract.res
@@ -98,6 +98,7 @@ let _ = app->Fastify.listen({port: 3000})
 - [Table of Contents](#table-of-contents)
 - [Install](#install)
 - [Route Definition](#route-definition)
+  - [RPC-like abstraction](#rpc-like-abstraction)
   - [Path Parameters](#path-parameters)
   - [Query Parameters](#query-parameters)
   - [Request Headers](#request-headers)
@@ -106,6 +107,8 @@ let _ = app->Fastify.listen({port: 3000})
   - [Responses](#responses)
   - [Response Headers](#response-headers)
   - [Temporary Redirect](#temporary-redirect)
+- [Fetch & Client](#fetch--client)
+  - [API Fetcher](#api-fetcher)
 - [Client-side Integrations](#client-side-integrations)
   - [SWR](#swr)
     - [Polling](#polling)
@@ -141,6 +144,30 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 Routes are the main building block of the library and a perfect way to describe a contract between your client and server.
 
 For every route you can describe how the HTTP transport will look like, the `'input` and `'output` types, as well as add additional metadata to use for OpenAPI.
+
+### RPC-like abstraction
+
+Alternatively if you use ReScript Rest both on client and server and you don't care about how the data is transfered, there's a helper built on top of `Rest.route`. Just define input and output schemas and done:
+
+```rescript
+let getPosts = Rest.rpc(() => {
+  input: S.sceham(s => {
+    "skip": s.matches(S.int),
+    "take": s.matches(S.int),
+    "page": s.matches(S.option(S.int)),
+  }),
+  output: S.array(postSchema),
+})
+
+let result = await Contract.getPosts->Rest.fetch(
+  {"skip": 0, "take": 10, "page": Some(1)}
+)
+// ℹ️ It'll do a POST request to http://localhost:3000/getPosts with the `{"skip": 0, "take": 10, "page": 1}` body and application/json Content Type
+```
+
+This is a code snipped from the super simple example above. Note how I only changed the route definition, but the fetching call stayed untouched. The same goes for the server implementation - if the input and output types of the route don't change there's no need to rewrite any logic.
+
+> 🧠 The path for the route is either taken from `operationId` or the name of the route variable.
 
 ### Path Parameters
 
@@ -429,7 +456,7 @@ let fetch = Rest.fetch(~client, ...)
 
 ### API Fetcher
 
-You can override the client fetching logic by passing the `~apiFetcher` param.
+You can override the client fetching logic by passing the `~fetcher` param.
 
 ## Client-side Integrations
 

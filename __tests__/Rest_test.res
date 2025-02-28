@@ -607,7 +607,7 @@ let bigint: S.t<bigint> = S.custom("BigInt", s => {
 })
 
 asyncTest("Test query params encoding to path", async t => {
-  let getHeight = Rest.route(() => {
+  let routeFn = (): Rest.definition<'i, 'o> => {
     path: "/height",
     method: Get,
     input: s =>
@@ -630,12 +630,11 @@ asyncTest("Test query params encoding to path", async t => {
         "trueString": s.query("trueString", S.literal("true")),
         "nested": s.query(
           "nested",
-          S.object(
-            s =>
-              {
-                "unit": s.field("unit", S.unit),
-                "nestedNested": s.nested("nestedNested").field("field", S.string),
-              },
+          S.object(s =>
+            {
+              "unit": s.field("unit", S.unit),
+              "nestedNested": s.nested("nestedNested").field("field", S.string),
+            }
           ),
         ),
       },
@@ -645,7 +644,9 @@ asyncTest("Test query params encoding to path", async t => {
         s.data(S.bool)
       },
     ],
-  })
+  }
+
+  let getHeight = Rest.route(routeFn)
 
   let input = {
     "string": "abc",
@@ -685,7 +686,7 @@ asyncTest("Test query params encoding to path", async t => {
   t->Assert.deepEqual(await Rest.fetch(~client, getHeight, input), true)
 
   let getHeight = Rest.route(() => {
-    ...(getHeight->Rest.params).definition,
+    ...routeFn(),
     jsonQuery: true,
   })
 
@@ -712,7 +713,7 @@ asyncTest("Test query params encoding to path", async t => {
 })
 
 asyncTest("Test query params support by Fastify", async t => {
-  let getHeight = Rest.route(() => {
+  let routeFn = (): Rest.definition<'i, 'o> => {
     path: "/height",
     method: Get,
     input: s =>
@@ -749,7 +750,8 @@ asyncTest("Test query params support by Fastify", async t => {
         s.data(S.bool)
       },
     ],
-  })
+  }
+  let getHeight = Rest.route(routeFn)
 
   let input = {
     "string": "abc",
@@ -792,7 +794,7 @@ asyncTest("Test query params support by Fastify", async t => {
   t->Assert.deepEqual(await Rest.fetch(~client, getHeight, input), true)
 
   let getHeight = Rest.route(() => {
-    ...(getHeight->Rest.params).definition,
+    ...routeFn(),
     jsonQuery: true,
   })
 
@@ -1209,6 +1211,30 @@ asyncTest("Fails with an invalid response data", async t => {
       message: `[rescript-rest] Failed parsing response data. Reason: Expected true, received false`,
     },
   )
+})
+
+asyncTest("Test Rest.rpc", async t => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=async (
+    data
+  ): Rest.ApiFetcher.response => {
+    t->Assert.deepEqual(
+      data,
+      {
+        path: "http://localhost:3000/getHeight",
+        method: "POST",
+        body: Some("false"->Obj.magic),
+        headers: Some(Js.Dict.fromArray([("content-type", "application/json"->Obj.magic)])),
+      },
+    )
+    {data: false->Obj.magic, status: 200, headers: Js.Dict.empty()}
+  })
+
+  let getHeight = Rest.rpc(() => {
+    input: S.bool,
+    output: S.bool,
+  })
+
+  t->Assert.deepEqual(await getHeight->Rest.fetch(~client, false), false)
 })
 
 asyncTest("Test POST request with rawBody", async t => {

@@ -198,8 +198,8 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
   // 1. To be able to configure ContentTypeParser specifically for the route
   // 2. To get access to app with registered plugins eg Swagger
   app->internalRegister((app, _, done) => {
-    let {definition, inputSchema, responseSchema, responses, pathItems, isRawBody} =
-      restRoute->Rest.params
+    let params = restRoute->Rest.params
+    let {inputSchema, outputSchema, responses, pathItems, isRawBody} = params
 
     let url = ref("")
     for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -239,16 +239,16 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     })
 
     let routeSchema = {
-      description: ?definition.description,
-      summary: ?definition.summary,
-      deprecated: ?definition.deprecated,
-      tags: ?definition.tags,
-      operationId: ?definition.operationId,
-      externalDocs: ?definition.externalDocs,
+      description: ?params.description,
+      summary: ?params.summary,
+      deprecated: ?params.deprecated,
+      tags: ?params.tags,
+      operationId: ?params.operationId,
+      externalDocs: ?params.externalDocs,
       response: routeSchemaResponses,
     }
     let routeOptions = {
-      method: (definition.method :> string),
+      method: (params.method :> string),
       url: url.contents,
       handler: (request, reply) => {
         let input = try request->S.parseOrThrow(inputSchema) catch {
@@ -263,7 +263,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
           }
         }
         fn({input: input})->Promise.thenResolve(implementationResult => {
-          let data: {..} = implementationResult->S.reverseConvertOrThrow(responseSchema)->Obj.magic
+          let data: {..} = implementationResult->S.reverseConvertOrThrow(outputSchema)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
             reply.headers(headers)
@@ -287,7 +287,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
             ->Js.Dict.set(location, jsonSchema)
           | Error(message) =>
             Js.Exn.raiseError(
-              `Failed to create JSON-Schema for ${location} of ${(definition.method :> string)} ${definition.path} route. Error: ${message}`,
+              `Failed to create JSON-Schema for ${location} of ${(params.method :> string)} ${params.path} route. Error: ${message}`,
             )
           }
         | None => ()

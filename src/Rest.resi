@@ -126,6 +126,17 @@ type definition<'input, 'output> = {
   jsonQuery?: bool,
 }
 
+type rpc<'input, 'output> = {
+  input: S.t<'input>,
+  output: S.t<'output>,
+  summary?: string,
+  description?: string,
+  deprecated?: bool,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
+}
+
 type route<'input, 'output>
 
 type pathParam = {name: string}
@@ -133,18 +144,27 @@ type pathParam = {name: string}
 type pathItem = Static(string) | Param(pathParam)
 
 type routeParams<'input, 'output> = {
-  definition: definition<'input, 'output>,
+  method: method,
+  path: string,
   pathItems: array<pathItem>,
   inputSchema: S.t<'input>,
-  responseSchema: S.t<'output>,
+  outputSchema: S.t<'output>,
   responses: array<Response.t<'output>>,
   responsesMap: dict<Response.t<'output>>,
   isRawBody: bool,
+  summary?: string,
+  description?: string,
+  deprecated?: bool,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
+  jsonQuery?: bool,
 }
 
 let params: route<'input, 'output> => routeParams<'input, 'output>
 
 external route: (unit => definition<'input, 'output>) => route<'input, 'output> = "%identity"
+external rpc: (unit => rpc<'input, 'output>) => route<'input, 'output> = "%identity"
 
 module ApiFetcher: {
   type args = {body: option<unknown>, headers: option<dict<unknown>>, method: string, path: string}

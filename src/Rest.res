@@ -165,47 +165,47 @@ module Response = {
     redirect: 'value. S.t<'value> => 'value,
   }
 
-  type t<'response> = {
+  type t<'output> = {
     // When it's empty, treat response as a default
     status: option<int>,
     description: option<string>,
     dataSchema: S.t<unknown>,
     emptyData: bool,
-    schema: S.t<'response>,
+    schema: S.t<'output>,
   }
 
-  type builder<'response> = {
+  type builder<'output> = {
     // When it's empty, treat response as a default
     mutable status?: int,
     mutable description?: string,
     mutable dataSchema?: S.t<unknown>,
     mutable emptyData: bool,
-    mutable schema?: S.t<'response>,
+    mutable schema?: S.t<'output>,
   }
 
   let register = (
-    map: dict<t<'response>>,
+    map: dict<t<'output>>,
     status: [< status | #default],
-    builder: builder<'response>,
+    builder: builder<'output>,
   ) => {
     let key = status->(Obj.magic: [< status | #default] => string)
     if map->Dict.has(key) {
       panic(`Response for the "${key}" status registered multiple times`)
     } else {
-      map->Js.Dict.set(key, builder->(Obj.magic: builder<'response> => t<'response>))
+      map->Js.Dict.set(key, builder->(Obj.magic: builder<'output> => t<'output>))
     }
   }
 
   @inline
-  let find = (map: dict<t<'response>>, responseStatus: int): option<t<'response>> => {
+  let find = (map: dict<t<'output>>, responseStatus: int): option<t<'output>> => {
     (map
     ->Js.Dict.unsafeGet(responseStatus->(Obj.magic: int => string))
-    ->(Obj.magic: t<'response> => bool) ||
+    ->(Obj.magic: t<'output> => bool) ||
     map
     ->Js.Dict.unsafeGet((responseStatus / 100)->(Obj.magic: int => string) ++ "XX")
-    ->(Obj.magic: t<'response> => bool) ||
-    map->Js.Dict.unsafeGet("default")->(Obj.magic: t<'response> => bool))
-      ->(Obj.magic: bool => option<t<'response>>)
+    ->(Obj.magic: t<'output> => bool) ||
+    map->Js.Dict.unsafeGet("default")->(Obj.magic: t<'output> => bool))
+      ->(Obj.magic: bool => option<t<'output>>)
   }
 }
 
@@ -235,11 +235,11 @@ type method =
   | @as("OPTIONS") Options
   | @as("TRACE") Trace
 
-type definition<'input, 'response> = {
+type definition<'input, 'output> = {
   method: method,
   path: string,
   input: s => 'input,
-  responses: array<Response.s => 'response>,
+  responses: array<Response.s => 'output>,
   summary?: string,
   description?: string,
   deprecated?: bool,
@@ -250,17 +250,36 @@ type definition<'input, 'response> = {
   jsonQuery?: bool,
 }
 
-type routeParams<'input, 'response> = {
-  definition: definition<'input, 'response>,
-  pathItems: array<pathItem>,
-  inputSchema: S.t<'input>,
-  responseSchema: S.t<'response>,
-  responses: array<Response.t<'response>>,
-  responsesMap: dict<Response.t<'response>>,
-  isRawBody: bool,
+type rpc<'input, 'output> = {
+  input: S.t<'input>,
+  output: S.t<'output>,
+  summary?: string,
+  description?: string,
+  deprecated?: bool,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
 }
 
-type route<'input, 'response> = unit => definition<'input, 'response>
+type routeParams<'input, 'output> = {
+  method: method,
+  path: string,
+  pathItems: array<pathItem>,
+  inputSchema: S.t<'input>,
+  outputSchema: S.t<'output>,
+  responses: array<Response.t<'output>>,
+  responsesMap: dict<Response.t<'output>>,
+  isRawBody: bool,
+  summary?: string,
+  description?: string,
+  deprecated?: bool,
+  operationId?: string,
+  tags?: array<string>,
+  externalDocs?: OpenAPI.externalDocumentation,
+  jsonQuery?: bool,
+}
+
+type route<'input, 'output> = unit => definition<'input, 'output>
 
 let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
   if path !== "" {
@@ -375,180 +394,228 @@ let basicAuthSchema = S.string->S.transform(s => {
 })
 
 let params = route => {
-  switch (route->Obj.magic)["_rest"]->(
-    Obj.magic: unknown => option<routeParams<'input, 'response>>
-  ) {
+  switch (route->Obj.magic)["_rest"]->(Obj.magic: unknown => option<routeParams<'input, 'output>>) {
   | Some(params) => params
   | None => {
-      let routeDefinition = (
-        route->(Obj.magic: route<'input, 'response> => route<unknown, unknown>)
-      )()
+      let definition = (route->(Obj.magic: route<'input, 'output> => route<unknown, unknown>))()
 
-      let pathItems = []
-      let pathParams = Js.Dict.empty()
-      parsePath(routeDefinition.path, ~pathItems, ~pathParams)
-
-      // Don't use ref, since it creates an unnecessary object
-      let isRawBody = %raw(`false`)
-
-      let inputSchema = S.object(s => {
-        routeDefinition.input({
-          field: (fieldName, schema) => {
-            s.nested("body").field(fieldName, schema)
-          },
-          body: schema => {
-            if schema->isNestedFlattenSupported {
-              s.nested("body").flatten(schema)
-            } else {
-              s.field("body", schema)
-            }
-          },
-          rawBody: schema => {
-            let isNonStringBased = switch schema->S.classify {
-            | Literal(String(_))
-            | String => false
-            | _ => true
-            }
-            if isNonStringBased {
-              panic("Only string-based schemas are allowed in rawBody")
-            }
-            let _ = %raw(`isRawBody = true`)
-            s.field("body", schema)
-          },
-          header: (fieldName, schema) => {
-            s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
-          },
-          query: (fieldName, schema) => {
-            s.nested("query").field(fieldName, coerceSchema(schema))
-          },
-          param: (fieldName, schema) => {
-            if !Dict.has(pathParams, fieldName) {
-              panic(`Path parameter "${fieldName}" is not defined in the path`)
-            }
-            s.nested("params").field(fieldName, coerceSchema(schema))
-          },
-          auth: auth => {
-            s.nested("headers").field(
-              "authorization",
-              switch auth {
-              | Bearer => bearerAuthSchema
-              | Basic => basicAuthSchema
-              },
-            )
-          },
-        })
-      })
-
-      {
-        // The input input is guaranteed to be an object, so we reset the rescript-schema type filter here
+      let params = if (definition->Obj.magic)["output"] {
+        let definition =
+          definition->(Obj.magic: definition<unknown, unknown> => rpc<unknown, unknown>)
+        let path =
+          `/` ++
+          switch definition.operationId {
+          | Some(p) => p
+          | None => (route->Obj.magic)["name"]
+          }
+        let inputSchema = S.object(s => s.field("body", definition.input))
         inputSchema->stripInPlace
         inputSchema->removeTypeValidationInPlace
-        switch inputSchema->getSchemaField("headers") {
-        | Some({schema}) =>
-          schema->stripInPlace
-          schema->removeTypeValidationInPlace
-        | None => ()
+        let outputSchema = S.object(s => s.field("data", definition.output))
+        outputSchema->stripInPlace
+        outputSchema->removeTypeValidationInPlace
+        let response: Response.t<unknown> = {
+          status: Some(200),
+          description: None,
+          dataSchema: definition.input,
+          emptyData: false,
+          schema: outputSchema,
         }
-        switch inputSchema->getSchemaField("params") {
-        | Some({schema}) => schema->removeTypeValidationInPlace
-        | None => ()
+        let responsesMap = Js.Dict.empty()
+        responsesMap->Js.Dict.set("200", response)
+        {
+          method: Post,
+          path,
+          inputSchema,
+          outputSchema,
+          responses: [response],
+          responsesMap,
+          pathItems: [Static(path)],
+          isRawBody: false,
+          summary: ?definition.summary,
+          description: ?definition.description,
+          deprecated: ?definition.deprecated,
+          operationId: ?definition.operationId,
+          tags: ?definition.tags,
+          externalDocs: ?definition.externalDocs,
         }
-        switch inputSchema->getSchemaField("query") {
-        | Some({schema}) => schema->removeTypeValidationInPlace
-        | None => ()
-        }
-      }
+      } else {
+        let pathItems = []
+        let pathParams = Js.Dict.empty()
+        parsePath(definition.path, ~pathItems, ~pathParams)
 
-      let responsesMap = Js.Dict.empty()
-      let responses = []
-      routeDefinition.responses->Js.Array2.forEach(r => {
-        let builder: Response.builder<unknown> = {
-          emptyData: true,
-        }
-        let schema = S.object(s => {
-          let status = status => {
-            builder.status = Some(status)
-            let status = status->(Obj.magic: int => Response.status)
-            responsesMap->Response.register(status, builder)
-            s.tag("status", status)
-          }
-          let header = (fieldName, schema) => {
-            s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
-          }
-          let definition = r({
-            status,
-            redirect: schema => {
-              status(307)
-              header("location", coerceSchema(schema))
-            },
-            description: d => builder.description = Some(d),
+        // Don't use ref, since it creates an unnecessary object
+        let isRawBody = %raw(`false`)
+
+        let inputSchema = S.object(s => {
+          definition.input({
             field: (fieldName, schema) => {
-              builder.emptyData = false
-              s.nested("data").field(fieldName, schema)
+              s.nested("body").field(fieldName, schema)
             },
-            data: schema => {
-              builder.emptyData = false
+            body: schema => {
               if schema->isNestedFlattenSupported {
-                s.nested("data").flatten(schema)
+                s.nested("body").flatten(schema)
               } else {
-                s.field("data", schema)
+                s.field("body", schema)
               }
             },
-            header,
+            rawBody: schema => {
+              let isNonStringBased = switch schema->S.classify {
+              | Literal(String(_))
+              | String => false
+              | _ => true
+              }
+              if isNonStringBased {
+                panic("Only string-based schemas are allowed in rawBody")
+              }
+              let _ = %raw(`isRawBody = true`)
+              s.field("body", schema)
+            },
+            header: (fieldName, schema) => {
+              s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
+            },
+            query: (fieldName, schema) => {
+              s.nested("query").field(fieldName, coerceSchema(schema))
+            },
+            param: (fieldName, schema) => {
+              if !Dict.has(pathParams, fieldName) {
+                panic(`Path parameter "${fieldName}" is not defined in the path`)
+              }
+              s.nested("params").field(fieldName, coerceSchema(schema))
+            },
+            auth: auth => {
+              s.nested("headers").field(
+                "authorization",
+                switch auth {
+                | Bearer => bearerAuthSchema
+                | Basic => basicAuthSchema
+                },
+              )
+            },
           })
-          if builder.emptyData {
-            s.tag("data", %raw(`null`))
-          }
-          definition
         })
-        if builder.status === None {
-          responsesMap->Response.register(#default, builder)
-        }
-        schema->stripInPlace
-        schema->removeTypeValidationInPlace
-        let dataSchema = (schema->getSchemaField("data")->Option.unsafeUnwrap).schema
-        builder.dataSchema = dataSchema->Option.unsafeSome
-        switch dataSchema->S.classify {
-        | Literal(_) => {
-            let dataTypeValidation = dataSchema->unsafeGetTypeValidationInPlace
-            schema->setTypeValidationInPlace((b, ~inputVar) =>
-              dataTypeValidation(b, ~inputVar=`${inputVar}.data`)
-            )
+
+        {
+          // The input input is guaranteed to be an object, so we reset the rescript-schema type filter here
+          inputSchema->stripInPlace
+          inputSchema->removeTypeValidationInPlace
+          switch inputSchema->getSchemaField("headers") {
+          | Some({schema}) =>
+            schema->stripInPlace
+            schema->removeTypeValidationInPlace
+          | None => ()
           }
-        | _ => ()
+          switch inputSchema->getSchemaField("params") {
+          | Some({schema}) => schema->removeTypeValidationInPlace
+          | None => ()
+          }
+          switch inputSchema->getSchemaField("query") {
+          | Some({schema}) => schema->removeTypeValidationInPlace
+          | None => ()
+          }
         }
-        switch schema->getSchemaField("headers") {
-        | Some({schema}) =>
+
+        let responsesMap = Js.Dict.empty()
+        let responses = []
+        definition.responses->Js.Array2.forEach(r => {
+          let builder: Response.builder<unknown> = {
+            emptyData: true,
+          }
+          let schema = S.object(s => {
+            let status = status => {
+              builder.status = Some(status)
+              let status = status->(Obj.magic: int => Response.status)
+              responsesMap->Response.register(status, builder)
+              s.tag("status", status)
+            }
+            let header = (fieldName, schema) => {
+              s.nested("headers").field(fieldName->Js.String2.toLowerCase, coerceSchema(schema))
+            }
+            let definition = r({
+              status,
+              redirect: schema => {
+                status(307)
+                header("location", coerceSchema(schema))
+              },
+              description: d => builder.description = Some(d),
+              field: (fieldName, schema) => {
+                builder.emptyData = false
+                s.nested("data").field(fieldName, schema)
+              },
+              data: schema => {
+                builder.emptyData = false
+                if schema->isNestedFlattenSupported {
+                  s.nested("data").flatten(schema)
+                } else {
+                  s.field("data", schema)
+                }
+              },
+              header,
+            })
+            if builder.emptyData {
+              s.tag("data", %raw(`null`))
+            }
+            definition
+          })
+          if builder.status === None {
+            responsesMap->Response.register(#default, builder)
+          }
           schema->stripInPlace
           schema->removeTypeValidationInPlace
-        | None => ()
+          let dataSchema = (schema->getSchemaField("data")->Option.unsafeUnwrap).schema
+          builder.dataSchema = dataSchema->Option.unsafeSome
+          switch dataSchema->S.classify {
+          | Literal(_) => {
+              let dataTypeValidation = dataSchema->unsafeGetTypeValidationInPlace
+              schema->setTypeValidationInPlace((b, ~inputVar) =>
+                dataTypeValidation(b, ~inputVar=`${inputVar}.data`)
+              )
+            }
+          | _ => ()
+          }
+          switch schema->getSchemaField("headers") {
+          | Some({schema}) =>
+            schema->stripInPlace
+            schema->removeTypeValidationInPlace
+          | None => ()
+          }
+          builder.schema = Option.unsafeSome(schema)
+          responses
+          ->Js.Array2.push(builder->(Obj.magic: Response.builder<unknown> => Response.t<unknown>))
+          ->ignore
+        })
+
+        if responses->Js.Array2.length === 0 {
+          panic("At least single response should be registered")
         }
-        builder.schema = Option.unsafeSome(schema)
-        responses
-        ->Js.Array2.push(builder->(Obj.magic: Response.builder<unknown> => Response.t<unknown>))
-        ->ignore
-      })
 
-      if responses->Js.Array2.length === 0 {
-        panic("At least single response should be registered")
+        {
+          method: definition.method,
+          path: definition.path,
+          inputSchema,
+          outputSchema: S.union(responses->Js.Array2.map(r => r.schema)),
+          responses,
+          pathItems,
+          responsesMap,
+          isRawBody,
+          summary: ?definition.summary,
+          description: ?definition.description,
+          deprecated: ?definition.deprecated,
+          operationId: ?definition.operationId,
+          tags: ?definition.tags,
+          externalDocs: ?definition.externalDocs,
+          jsonQuery: ?definition.jsonQuery,
+        }
       }
 
-      let params = {
-        definition: routeDefinition,
-        inputSchema,
-        responseSchema: S.union(responses->Js.Array2.map(r => r.schema)),
-        responses,
-        pathItems,
-        responsesMap,
-        isRawBody,
-      }
       (route->Obj.magic)["_rest"] = params
-      params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'input, 'response>)
+      params->(Obj.magic: routeParams<unknown, unknown> => routeParams<'input, 'output>)
     }
   }
 }
 
-external route: (unit => definition<'input, 'response>) => route<'input, 'response> = "%identity"
+external route: (unit => definition<'input, 'output>) => route<'input, 'output> = "%identity"
+external rpc: (unit => rpc<'input, 'output>) => route<'input, 'output> = "%identity"
 
 type client = {
   baseUrl: string,
@@ -675,7 +742,7 @@ let fetch = (type input response, route: route<input, response>, input, ~client=
   let route = route->(Obj.magic: route<input, response> => route<unknown, unknown>)
   let input = input->(Obj.magic: input => unknown)
 
-  let {definition, inputSchema, responsesMap, pathItems, isRawBody} = route->params
+  let {path, method, ?jsonQuery, inputSchema, responsesMap, pathItems, isRawBody} = route->params
 
   let client = switch client {
   | Some(client) => client
@@ -684,7 +751,7 @@ let fetch = (type input response, route: route<input, response>, input, ~client=
     | Some(client) => client
     | None =>
       panic(
-        `Client is not set for the ${definition.path} fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments`,
+        `Client is not set for the ${path} fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments`,
       )
     }
   }
@@ -709,9 +776,9 @@ let fetch = (type input response, route: route<input, response>, input, ~client=
       ~pathItems,
       ~maybeQuery=data["query"],
       ~maybeParams=data["params"],
-      ~jsonQuery=?definition.jsonQuery,
+      ~jsonQuery?,
     ),
-    method: (definition.method :> string),
+    method: (method :> string),
   })->Promise.thenResolve(fetcherResponse => {
     switch responsesMap->Response.find(fetcherResponse.status) {
     | None =>

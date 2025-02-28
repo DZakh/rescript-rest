@@ -9,17 +9,18 @@ var Caml_js_exceptions = require("rescript/lib/js/caml_js_exceptions.js");
 function handler(route, implementation) {
   var match = Rest.params(route);
   var isRawBody = match.isRawBody;
-  var responseSchema = match.responseSchema;
+  var outputSchema = match.outputSchema;
   var inputSchema = match.inputSchema;
-  var definition = match.definition;
+  var path = match.path;
+  var method = match.method;
   match.pathItems.forEach(function (pathItem) {
         if (typeof pathItem === "string") {
           return ;
         }
-        throw new Error("[rescript-rest] " + ("Route " + definition.path + " contains a path param " + pathItem.name + " which is not supported by Next.js handler yet"));
+        throw new Error("[rescript-rest] " + ("Route " + path + " contains a path param " + pathItem.name + " which is not supported by Next.js handler yet"));
       });
   return async function (req, res) {
-    if (req.method !== definition.method) {
+    if (req.method !== method) {
       return res.status(404).end();
     }
     if (req.body === undefined) {
@@ -56,7 +57,7 @@ function handler(route, implementation) {
             req: req,
             res: res
           });
-      var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, responseSchema);
+      var data = S$RescriptSchema.reverseConvertOrThrow(implementationResult, outputSchema);
       var headers = data.headers;
       if (headers !== undefined) {
         Object.keys(headers).forEach(function (key) {
@@ -68,7 +69,7 @@ function handler(route, implementation) {
     catch (raw_error$1){
       var error$1 = Caml_js_exceptions.internalToOCamlException(raw_error$1);
       if (error$1.RE_EXN_ID === S$RescriptSchema.Raised) {
-        return Js_exn.raiseError("Unexpected error in the " + definition.path + " route: " + S$RescriptSchema.$$Error.message(error$1._1));
+        return Js_exn.raiseError("Unexpected error in the " + path + " route: " + S$RescriptSchema.$$Error.message(error$1._1));
       }
       throw error$1;
     }

@@ -49,8 +49,8 @@ external useSwrInternal: (
 ) => return<'data> = "default"
 
 let use = (route, ~input=?, ~options=?, ~client: option<Rest.client>=?) => {
-  let {definition} = route->Rest.params
-  if definition.method !== Get {
+  let {method} = route->Rest.params
+  if method !== Get {
     Js.Exn.raiseError(`[rescript-rest] Only GET requests are supported by Swr`)
   }
   useSwrInternal(
