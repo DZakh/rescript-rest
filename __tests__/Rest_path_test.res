@@ -2,7 +2,7 @@ open Ava
 open RescriptSchema
 
 let mockClient = () => {
-  Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (_): Rest.ApiFetcher.response => {
+  Rest.client("http://localhost:3000", ~fetcher=async (_): Rest.ApiFetcher.response => {
     Js.Exn.raiseError("Not implemented")
   })
 }
@@ -24,7 +24,7 @@ asyncTest("Fails with path parameter not defined in input", async t => {
 
   t->Assert.throws(
     () => {
-      client.call(createGame, ())
+      createGame->Rest.fetch((), ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path parameter "gameId" is not defined in input`,
@@ -49,7 +49,7 @@ asyncTest("Fails with path parameter not defined in the path string", async t =>
 
   t->Assert.throws(
     () => {
-      client.call(createGame, "gameId")
+      createGame->Rest.fetch("gameId", ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path parameter "gameId" is not defined in the path`,
@@ -74,7 +74,7 @@ asyncTest("Fails with empty path parameter name", async t => {
 
   t->Assert.throws(
     () => {
-      client.call(createGame, "gameId")
+      createGame->Rest.fetch("gameId", ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path parameter name cannot be empty`,
@@ -99,7 +99,7 @@ asyncTest("Fails with path parameter missing closing curly bracket", async t => 
 
   t->Assert.throws(
     () => {
-      client.call(createGame, "gameId")
+      createGame->Rest.fetch("gameId", ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path contains an unclosed parameter`,
@@ -124,7 +124,7 @@ asyncTest("Fails with path parameter missing opening curly bracket", async t => 
 
   t->Assert.throws(
     () => {
-      client.call(createGame, "gameId")
+      createGame->Rest.fetch("gameId", ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path parameter "gameId" is not defined in the path`,
@@ -149,7 +149,7 @@ asyncTest("Fails with path parameter switched open and close curly bracket", asy
 
   t->Assert.throws(
     () => {
-      client.call(createGame, "gameId")
+      createGame->Rest.fetch("gameId", ~client)
     },
     ~expectations={
       message: `[rescript-rest] Path parameter is not enclosed in curly braces`,

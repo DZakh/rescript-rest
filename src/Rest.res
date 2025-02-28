@@ -246,6 +246,8 @@ type definition<'input, 'response> = {
   operationId?: string,
   tags?: array<string>,
   externalDocs?: OpenAPI.externalDocumentation,
+  // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
+  jsonQuery?: bool,
 }
 
 type routeParams<'input, 'response> = {
@@ -549,11 +551,8 @@ let params = route => {
 external route: (unit => definition<'input, 'response>) => route<'input, 'response> = "%identity"
 
 type client = {
-  call: 'input 'response. (route<'input, 'response>, 'input) => promise<'response>,
   baseUrl: string,
   fetcher: ApiFetcher.t,
-  // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
-  jsonQuery: bool,
 }
 
 /**
@@ -585,7 +584,7 @@ let rec tokeniseValue = (key, value, ~append) => {
 }
 
 // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L347
-let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQuery) => {
+let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQuery=false) => {
   let path = ref(baseUrl)
 
   for idx in 0 to pathItems->Js.Array2.length - 1 {
@@ -663,18 +662,32 @@ let url = (route, input, ~baseUrl="") => {
   )
 }
 
-let fetch = (
-  type input response,
-  route: route<input, response>,
-  baseUrl,
-  input,
-  ~fetcher=ApiFetcher.default,
-  ~jsonQuery=false,
-) => {
+type global = {
+  @as("c")
+  mutable client: option<client>,
+}
+
+let global = {
+  client: None,
+}
+
+let fetch = (type input response, route: route<input, response>, input, ~client=?) => {
   let route = route->(Obj.magic: route<input, response> => route<unknown, unknown>)
   let input = input->(Obj.magic: input => unknown)
 
   let {definition, inputSchema, responsesMap, pathItems, isRawBody} = route->params
+
+  let client = switch client {
+  | Some(client) => client
+  | None =>
+    switch global.client {
+    | Some(client) => client
+    | None =>
+      panic(
+        `Client is not set for the ${definition.path} fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments`,
+      )
+    }
+  }
 
   let data = input->S.reverseConvertOrThrow(inputSchema)->Obj.magic
 
@@ -688,15 +701,15 @@ let fetch = (
     data["headers"]["content-type"] = "application/json"
   }
 
-  fetcher({
+  client.fetcher({
     body: data["body"],
     headers: data["headers"],
     path: getCompletePath(
-      ~baseUrl,
+      ~baseUrl=client.baseUrl,
       ~pathItems,
       ~maybeQuery=data["query"],
       ~maybeParams=data["params"],
-      ~jsonQuery,
+      ~jsonQuery=?definition.jsonQuery,
     ),
     method: (definition.method :> string),
   })->Promise.thenResolve(fetcherResponse => {
@@ -731,12 +744,17 @@ let fetch = (
   })
 }
 
-let client = (~baseUrl, ~fetcher=ApiFetcher.default, ~jsonQuery=false) => {
-  let call = (route, input) => route->fetch(baseUrl, input, ~fetcher, ~jsonQuery)
+let client = (baseUrl, ~fetcher=ApiFetcher.default) => {
   {
     baseUrl,
     fetcher,
-    call,
-    jsonQuery,
+  }
+}
+
+let setGlobalClient = (baseUrl, ~fetcher=?) => {
+  switch global.client {
+  | Some(_) =>
+    panic("There's already a global client defined. You can have only one global client at a time.")
+  | None => global.client = Some(client(baseUrl, ~fetcher?))
   }
 }

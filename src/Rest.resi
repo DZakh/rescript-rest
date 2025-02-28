@@ -2,22 +2,6 @@
 
 open RescriptSchema
 
-module ApiFetcher: {
-  type args = {body: option<unknown>, headers: option<dict<unknown>>, method: string, path: string}
-  type response = {data: unknown, status: int, headers: dict<unknown>}
-  type t = args => promise<response>
-
-  // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L102
-  /**
-  * Default fetch api implementation:
-  *
-  * Can be used as a reference for implementing your own fetcher,
-  * or used in the "api" field of ClientArgs to allow you to hook
-  * into the request to run custom logic
-  */
-  let default: t
-}
-
 module Response: {
   type numiricStatus = [
     | #100
@@ -86,13 +70,13 @@ module Response: {
     | numiricStatus
   ]
 
-  type t<'response> = {
+  type t<'output> = {
     // When it's empty, treat response as a default
     status: option<int>,
     description: option<string>,
     dataSchema: S.t<unknown>,
     emptyData: bool,
-    schema: S.t<'response>,
+    schema: S.t<'output>,
   }
 
   type s = {
@@ -127,54 +111,66 @@ type method =
   | @as("OPTIONS") Options
   | @as("TRACE") Trace
 
-type definition<'input, 'response> = {
+type definition<'input, 'output> = {
   method: method,
   path: string,
   input: s => 'input,
-  responses: array<Response.s => 'response>,
+  responses: array<Response.s => 'output>,
   summary?: string,
   description?: string,
   deprecated?: bool,
   operationId?: string,
   tags?: array<string>,
   externalDocs?: OpenAPI.externalDocumentation,
+  // By default, all query parameters are encoded as strings, however, you can use the jsonQuery option to encode query parameters as typed JSON values.
+  jsonQuery?: bool,
 }
 
-type route<'input, 'response>
+type route<'input, 'output>
 
 type pathParam = {name: string}
 @unboxed
 type pathItem = Static(string) | Param(pathParam)
 
-type routeParams<'input, 'response> = {
-  definition: definition<'input, 'response>,
+type routeParams<'input, 'output> = {
+  definition: definition<'input, 'output>,
   pathItems: array<pathItem>,
   inputSchema: S.t<'input>,
-  responseSchema: S.t<'response>,
-  responses: array<Response.t<'response>>,
-  responsesMap: dict<Response.t<'response>>,
+  responseSchema: S.t<'output>,
+  responses: array<Response.t<'output>>,
+  responsesMap: dict<Response.t<'output>>,
   isRawBody: bool,
 }
 
-let params: route<'input, 'response> => routeParams<'input, 'response>
+let params: route<'input, 'output> => routeParams<'input, 'output>
 
-external route: (unit => definition<'input, 'response>) => route<'input, 'response> = "%identity"
+external route: (unit => definition<'input, 'output>) => route<'input, 'output> = "%identity"
 
-type client = {
-  call: 'input 'response. (route<'input, 'response>, 'input) => promise<'response>,
-  baseUrl: string,
-  fetcher: ApiFetcher.t,
-  jsonQuery: bool,
+module ApiFetcher: {
+  type args = {body: option<unknown>, headers: option<dict<unknown>>, method: string, path: string}
+  type response = {data: unknown, status: int, headers: dict<unknown>}
+  type t = args => promise<response>
+
+  // Inspired by https://github.com/ts-rest/ts-rest/blob/7792ef7bdc352e84a4f5766c53f984a9d630c60e/libs/ts-rest/core/src/lib/client.ts#L102
+  /**
+  * Default fetch api implementation:
+  *
+  * Can be used as a reference for implementing your own fetcher,
+  * or used in the "api" field of ClientArgs to allow you to hook
+  * into the request to run custom logic
+  */
+  let default: t
 }
 
-let url: (route<'input, 'response>, 'input, ~baseUrl: string=?) => string
+type client = {
+  baseUrl: string,
+  fetcher: ApiFetcher.t,
+}
 
-let client: (~baseUrl: string, ~fetcher: ApiFetcher.t=?, ~jsonQuery: bool=?) => client
+let url: (route<'input, 'output>, 'input, ~baseUrl: string=?) => string
 
-let fetch: (
-  route<'input, 'response>,
-  string,
-  'input,
-  ~fetcher: ApiFetcher.t=?,
-  ~jsonQuery: bool=?,
-) => promise<'response>
+let client: (string, ~fetcher: ApiFetcher.t=?) => client
+
+let setGlobalClient: (string, ~fetcher: ApiFetcher.t=?) => unit
+
+let fetch: (route<'input, 'output>, 'input, ~client: client=?) => promise<'output>

@@ -381,7 +381,8 @@ function tokeniseValue(key, value, append) {
   }
 }
 
-function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQuery) {
+function getCompletePath(baseUrl, pathItems, maybeQuery, maybeParams, jsonQueryOpt) {
+  var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
   var path = baseUrl;
   for(var idx = 0 ,idx_finish = pathItems.length; idx < idx_finish; ++idx){
     var pathItem = pathItems[idx];
@@ -431,11 +432,25 @@ function url(route, input, baseUrlOpt) {
   return getCompletePath(baseUrl, match.pathItems, data.query, data.params, false);
 }
 
-function $$fetch$1(route, baseUrl, input, fetcherOpt, jsonQueryOpt) {
-  var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
-  var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
+var $$global = {
+  c: undefined
+};
+
+function $$fetch$1(route, input, client) {
   var match = params(route);
   var responsesMap = match.responsesMap;
+  var definition = match.definition;
+  var client$1;
+  if (client !== undefined) {
+    client$1 = client;
+  } else {
+    var client$2 = $$global.c;
+    if (client$2 !== undefined) {
+      client$1 = client$2;
+    } else {
+      throw new Error("[rescript-rest] " + ("Client is not set for the " + definition.path + " fetch request. Please, use Rest.setGlobalClient or pass a client explicitly to the Rest.fetch arguments"));
+    }
+  }
   var data = S$RescriptSchema.reverseConvertOrThrow(input, match.inputSchema);
   if (data.body !== (void 0)) {
     if (!match.isRawBody) {
@@ -446,11 +461,11 @@ function $$fetch$1(route, baseUrl, input, fetcherOpt, jsonQueryOpt) {
     }
     data.headers["content-type"] = "application/json";
   }
-  return fetcher({
+  return client$1.fetcher({
                 body: data.body,
                 headers: data.headers,
-                method: match.definition.method,
-                path: getCompletePath(baseUrl, match.pathItems, data.query, data.params, jsonQuery)
+                method: definition.method,
+                path: getCompletePath(client$1.baseUrl, match.pathItems, data.query, data.params, definition.jsonQuery)
               }).then(function (fetcherResponse) {
               var responseStatus = fetcherResponse.status;
               var response = responsesMap[responseStatus] || responsesMap[(responseStatus / 100 | 0) + "XX"] || responsesMap["default"];
@@ -482,26 +497,29 @@ function $$fetch$1(route, baseUrl, input, fetcherOpt, jsonQueryOpt) {
             });
 }
 
-function client(baseUrl, fetcherOpt, jsonQueryOpt) {
+function client(baseUrl, fetcherOpt) {
   var fetcher = fetcherOpt !== undefined ? fetcherOpt : $$default;
-  var jsonQuery = jsonQueryOpt !== undefined ? jsonQueryOpt : false;
-  var call = function (route, input) {
-    return $$fetch$1(route, baseUrl, input, fetcher, jsonQuery);
-  };
   return {
-          call: call,
           baseUrl: baseUrl,
-          fetcher: fetcher,
-          jsonQuery: jsonQuery
+          fetcher: fetcher
         };
+}
+
+function setGlobalClient(baseUrl, fetcher) {
+  var match = $$global.c;
+  if (match !== undefined) {
+    throw new Error("[rescript-rest] There's already a global client defined. You can have only one global client at a time.");
+  }
+  $$global.c = client(baseUrl, fetcher);
 }
 
 var $$Response = {};
 
-exports.ApiFetcher = ApiFetcher;
 exports.$$Response = $$Response;
 exports.params = params;
+exports.ApiFetcher = ApiFetcher;
 exports.url = url;
 exports.client = client;
+exports.setGlobalClient = setGlobalClient;
 exports.$$fetch = $$fetch$1;
 /* bearerAuthSchema Not a pure module */

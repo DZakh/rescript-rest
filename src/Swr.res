@@ -46,24 +46,27 @@ external useSwrInternal: (
   ~options: options=?,
 ) => return<'data> = "default"
 
-let use = (route, ~baseUrl=?, ~input=?, ~options=?) => {
+let use = (route, ~input=?, ~options=?, ~client: option<Rest.client>=?) => {
   let {definition} = route->Rest.params
   if definition.method !== Get {
     Js.Exn.raiseError(`[rescript-rest] Only GET requests are supported by Swr`)
   }
   useSwrInternal(
     switch input {
-    | Some(input) => Value(route->Rest.url(input, ~baseUrl?))
+    | Some(input) =>
+      Value(
+        route->Rest.url(
+          input,
+          ~baseUrl=?switch client {
+          | Some(c) => Some(c.baseUrl)
+          | None => None
+          },
+        ),
+      )
     | None => Null
     },
     _ => {
-      route->Rest.fetch(
-        switch baseUrl {
-        | Some(url) => url
-        | None => ""
-        },
-        input->Belt.Option.getExn,
-      )
+      route->Rest.fetch(input->Belt.Option.getExn, ~client?)
     },
     ~options?,
   )

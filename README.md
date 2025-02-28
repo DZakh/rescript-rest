@@ -18,13 +18,9 @@
 
 > ⚠️ **rescript-rest** relies on **rescript-schema** which uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
-## Tutorials
-
-- Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
-
 ## Super Simple Example
 
-Easily define your API contract somewhere shared, for example, `Contract.res`:
+Define your API contract somewhere shared, for example, `Contract.res`:
 
 ```rescript
 let getPosts = Rest.route(() => {
@@ -44,11 +40,17 @@ let getPosts = Rest.route(() => {
 })
 ```
 
+Set an endpoint your fetch calls should use:
+
+```rescript
+// Contract.res
+Rest.setGlobalClient("http://localhost:3000")
+```
+
 Consume the API on the client with a RPC-like interface:
 
 ```rescript
 let result = await Contract.getPosts->Rest.fetch(
-  "http://localhost:3000",
   {"skip": 0, "take": 10, "page": Some(1)}
   // ^-- Fully typed!
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts?skip=0&take=10 with the `{"x-pagination-page": "1"}` headers
@@ -85,11 +87,41 @@ let _ = app->Fastify.listen({port: 3000})
 
 - [Cli App Rock-Paper-Scissors](https://github.com/Nicolas1st/net-cli-rock-paper-scissors/blob/main/apps/client/src/Api.res)
 
+## Tutorials
+
+- Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
+
+## Table of Contents
+
+- [Super Simple Example](#super-simple-example)
+- [Tutorials](#tutorials)
+- [Table of Contents](#table-of-contents)
+- [Install](#install)
+- [Route Definition](#route-definition)
+  - [Path Parameters](#path-parameters)
+  - [Query Parameters](#query-parameters)
+  - [Request Headers](#request-headers)
+    - [Authentication Header](#authentication-header)
+  - [Raw Body](#raw-body)
+  - [Responses](#responses)
+  - [Response Headers](#response-headers)
+  - [Temporary Redirect](#temporary-redirect)
+- [Client-side Integrations](#client-side-integrations)
+  - [SWR](#swr)
+    - [Polling](#polling)
+- [Server-side Integrations](#server-side-integrations)
+  - [Next.js](#nextjs)
+    - [Raw Body for Webhooks](#raw-body-for-webhooks)
+  - [Fastify](#fastify)
+  - [OpenAPI Documentation with Fastify & Scalar](#openapi-documentation-with-fastify--scalar)
+- [Useful Utils](#useful-utils)
+  - [`Rest.url`](#resturl)
+
 ## Install
 
-Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) and `rescript-schema` ([instruction](https://github.com/DZakh/rescript-schema/blob/main/docs/rescript-usage.md#install)).
+Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) with `rescript-schema` ([instruction](https://github.com/DZakh/rescript-schema/blob/main/docs/rescript-usage.md#install)).
 
-Then run:
+And ReScript Rest itself:
 
 ```sh
 npm install rescript-rest
@@ -104,7 +136,13 @@ Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
 }
 ```
 
-## Path Parameters
+## Route Definition
+
+Routes are the main building block of the library and a perfect way to describe a contract between your client and server.
+
+For every route you can describe how the HTTP transport will look like, the `'input` and `'output` types, as well as add additional metadata to use for OpenAPI.
+
+### Path Parameters
 
 You can define path parameters by adding them to the `path` strin with a curly brace `{}` including the parameter name. Then each parameter must be defined in `input` with the `s.param` method.
 
@@ -121,8 +159,7 @@ let getPost = Rest.route(() => {
   ],
 })
 
-let result = await client.call(
-  getPost,
+let result = await getPost->Rest.fetch(
   {
     "authorId": "d7fa3ac6-5bfa-4322-bb2b-317ca629f61c",
     "id": 1
@@ -132,7 +169,7 @@ let result = await client.call(
 
 If you would like to run validations or transformations on the path parameters, you can use [`rescript-schema`](https://github.com/DZakh/rescript-schema) features for this. Note that the parameter names in the `s.param` **must** match the parameter names in the `path` string.
 
-## Query Parameters
+### Query Parameters
 
 You can add query parameters to the request by using the `s.query` method in the `input` definition.
 
@@ -149,8 +186,7 @@ let getPosts = Rest.route(() => {
   ],
 })
 
-let result = await client.call(
-  getPosts,
+let result = await getPosts->Rest.fetch(
   {
     "skip": 0,
     "take": 10,
@@ -160,11 +196,11 @@ let result = await client.call(
 
 You can also configure rescript-rest to encode/decode query parameters as JSON by using the `jsonQuery` option. This allows you to skip having to do type coercions, and allow you to use complex and typed JSON objects.
 
-## Request Headers
+### Request Headers
 
 You can add headers to the request by using the `s.header` method in the `input` definition.
 
-### Authentication header
+#### Authentication Header
 
 For the Authentication header there's an additional helper `s.auth` which supports `Bearer` and `Basic` authentication schemes.
 
@@ -181,8 +217,7 @@ let getPosts = Rest.route(() => {
   ],
 })
 
-let result = await client.call(
-  getPosts,
+let result = await getPosts->Rest.fetch(
   {
     "token": "abc",
     "pagination": 10,
@@ -190,7 +225,7 @@ let result = await client.call(
 ) // ℹ️ It'll do a GET request to http://localhost:3000/posts with the `{"authorization": "Bearer abc", "x-pagination": "10"}` headers
 ```
 
-## Raw Body
+### Raw Body
 
 For some low-level APIs, you may need to send raw body without any additional processing. You can use `s.rawBody` method to define a raw body schema. The schema should be string-based, but you can apply transformations to it using `s.variant` or `s.transform` methods.
 
@@ -217,10 +252,8 @@ let getLogs = Rest.route(() => {
   ],
 })
 
-let result = await client.call(
-  getLogs,
-  "debug"
-) // ℹ️ It'll do a POST request to http://localhost:3000/logs with the body `{"size": 20, "query": {"bool": {"must": [{"terms": {"log.level": ["debug"]}}]}}}` and the headers `{"content-type": "application/json"}`
+let result = await getLogs->Rest.fetch("debug")
+// ℹ️ It'll do a POST request to http://localhost:3000/logs with the body `{"size": 20, "query": {"bool": {"must": [{"terms": {"log.level": ["debug"]}}]}}}` and the headers `{"content-type": "application/json"}`
 ```
 
 You can also use routes with `rawBody` on the server side with Fastify as any other route:
@@ -233,7 +266,7 @@ app->Fastify.route(getLogs, async input => {
 
 > 🧠 Currently Raw Body is sent with the application/json Content Type. If you need support for other Content Types, please open an issue or PR.
 
-## Responses
+### Responses
 
 Responses are described as an array of response definitions. It's possible to assign the definition to a specific status using `s.status` method.
 
@@ -283,7 +316,7 @@ let createPost = Rest.route(() => {
 ```
 -->
 
-## Response Headers
+### Response Headers
 
 Responses from an API can include custom headers to provide additional information on the result of an API call. For example, a rate-limited API may provide the rate limit status via response headers as follows:
 
@@ -317,7 +350,7 @@ let ping = Rest.route(() => {
 })
 ```
 
-## Temporary Redirect
+### Temporary Redirect
 
 You can define a redirect using Route response definition:
 
@@ -346,6 +379,57 @@ let route = Rest.route(() => {
 ```
 
 In a nutshell, the `redirect` function is a wrapper around `s.status(307)` and `s.header("location", schema)`.
+
+## Fetch & Client
+
+To call `Rest.fetch` you either need to explicitely pass a `client` as an argument or have it globally set.
+
+I recommend to set a global client in the contract file:
+
+```rescript
+// Contract.res
+Rest.setGlobalClient("http://localhost:3000")
+```
+
+If you pass the endpoint via environment variables, I recommend using my another library [rescript-envsafe](https://github.com/DZakh/rescript-envsafe):
+
+```rescript
+// PublicEnv.res
+%%private(let envSafe = EnvSafe.make())
+
+let apiEndpoint = envSafe->EnvSafe.get(
+  "NEXT_PUBLIC_API_ENDPOINT",
+  ~input=%raw(`process.env.NEXT_PUBLIC_API_ENDPOINT`),
+  S.url(S.string),
+)
+
+envSafe->EnvSafe.close
+```
+
+```rescript
+// Contract.res
+Rest.setGlobalClient(PublicEnv.apiEndpoint)
+```
+
+If you can't or don't want to use a global client, you can manually pass it to the `Rest.fetch`:
+
+```rescript
+let client = Rest.client(PublicEnv.apiEndpoint)
+
+await route->Rest.fetch(input, ~client)
+```
+
+This might be useful when you interact with multiple backends in a single application. For this case I recommend to have a separate contract file for every backend and include wrappers for fetch with already configured client:
+
+```rescript
+let client = Rest.client(PublicEnv.apiEndpoint)
+
+let fetch = Rest.fetch(~client, ...)
+```
+
+### API Fetcher
+
+You can override the client fetching logic by passing the `~apiFetcher` param.
 
 ## Client-side Integrations
 
@@ -420,10 +504,7 @@ let default = Contract.getPosts->RestNextJs.handler(async ({input, req, res}) =>
 Then you can call your API handler from the client:
 
 ```rescript
-let posts = await Contract.getPosts->Rest.fetch(
-  "/api",
-  ()
-)
+let posts = await Contract.getPosts->Rest.fetch()
 ```
 
 #### Raw Body for Webhooks
@@ -585,17 +666,3 @@ let url = Rest.url(
   }
 ) //? /posts?skip=0&take=10
 ```
-
-## Planned Features
-
-- [x] Support query params
-- [x] Support headers
-- [x] Support path params
-- [x] Implement type-safe response
-- [ ] Support custom fetch options
-- [ ] Support non-json body
-- [x] Generate OpenAPI from Contract
-- [ ] Generate Contract from OpenAPI
-- [x] Server implementation with Fastify
-- [x] NextJs integration
-- [ ] Add TS/JS support

@@ -125,7 +125,7 @@ asyncTest("Test simple POST request", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -139,14 +139,14 @@ asyncTest("Test simple POST request", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
+  t->Assert.deepEqual(await createGame->Rest.fetch({"userName": "Dmitry"}, ~client), true)
 
   // Returns validation error
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     app->inject(args)
   })
   await t->Assert.throwsAsync(
-    client.call(createGame, %raw(`{"userName": 123}`)),
+    Rest.fetch(~client, createGame, %raw(`{"userName": 123}`)),
     ~expectations={
       message: `[rescript-rest] Unexpected response status "400". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected string, received 123`,
     },
@@ -204,7 +204,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     input
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -218,7 +218,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, data), data)
+  t->Assert.deepEqual(await Rest.fetch(~client, createGame, data), data)
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
@@ -241,7 +241,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     responses: [s => s.status(200)],
   })
   t->Assert.throws(
-    () => client.call(failingCreateGame, data),
+    () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
       message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
     },
@@ -262,7 +262,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     responses: [s => s.status(200)],
   })
   t->Assert.throws(
-    () => client.call(failingCreateGame, data),
+    () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
       message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
     },
@@ -281,7 +281,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     responses: [s => s.status(200)],
   })
   t->Assert.throws(
-    () => client.call(failingCreateGame, data),
+    () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
       message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
     },
@@ -309,7 +309,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     ],
   })
   t->Assert.throws(
-    () => client.call(failingCreateGame, data),
+    () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
       message: `[rescript-schema] The field "data" defined twice with incompatible schemas`,
     },
@@ -337,7 +337,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
     ],
   })
   t->Assert.throws(
-    () => client.call(failingCreateGame, data),
+    () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
       message: `[rescript-schema] The field "data" defined twice with incompatible schemas`,
     },
@@ -378,9 +378,9 @@ asyncTest("Integration test of simple POST request", async t => {
   let address = await app->Fastify.listenFirstAvailableLocalPort
   t->ExecutionContext.teardown(() => app->Fastify.close)
 
-  let client = Rest.client(~baseUrl=address)
+  let client = Rest.client(address)
 
-  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry"}), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, createGame, {"userName": "Dmitry"}), true)
 
   t->ExecutionContext.plan(2)
 })
@@ -417,7 +417,7 @@ asyncTest("Test request with mixed body and header data", async t => {
     input
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -434,7 +434,7 @@ asyncTest("Test request with mixed body and header data", async t => {
   })
 
   t->Assert.deepEqual(
-    await client.call(createGame, {"userName": "Dmitry", "version": 1}),
+    await Rest.fetch(~client, createGame, {"userName": "Dmitry", "version": 1}),
     {"userName": "Dmitry", "version": 1},
   )
 
@@ -479,7 +479,7 @@ asyncTest("Test request with Bearer auth", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -495,7 +495,10 @@ asyncTest("Test request with Bearer auth", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry", "bearer": "abc"}), true)
+  t->Assert.deepEqual(
+    await Rest.fetch(~client, createGame, {"userName": "Dmitry", "bearer": "abc"}),
+    true,
+  )
 
   t->ExecutionContext.plan(3)
 })
@@ -529,7 +532,7 @@ asyncTest("Test request with Basic auth", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -545,7 +548,10 @@ asyncTest("Test request with Basic auth", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, {"userName": "Dmitry", "token": "abc"}), true)
+  t->Assert.deepEqual(
+    await Rest.fetch(~client, createGame, {"userName": "Dmitry", "token": "abc"}),
+    true,
+  )
 
   t->ExecutionContext.plan(3)
 })
@@ -569,7 +575,7 @@ asyncTest("Test simple GET request", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -582,7 +588,7 @@ asyncTest("Test simple GET request", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, ()), true)
 
   t->ExecutionContext.plan(3)
 })
@@ -661,7 +667,7 @@ asyncTest("Test query params encoding to path", async t => {
     },
   }
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
+  let client = Rest.client("http://localhost:3000", ~fetcher=async (
     args
   ): Rest.ApiFetcher.response => {
     t->Assert.deepEqual(
@@ -676,28 +682,31 @@ asyncTest("Test query params encoding to path", async t => {
     {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, input), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, input), true)
 
-  let jsonQueryClient = Rest.client(
-    ~baseUrl="http://localhost:3000",
-    ~fetcher=async (args): Rest.ApiFetcher.response => {
-      t->Assert.deepEqual(
-        args,
-        {
-          path: "http://localhost:3000/height?string=abc&null=null&bool=true&int=123&array=%5B%22a%22%2C%22b%22%2C%22c%22%5D&nan=null&float=1.2&matrix=%5B%5B%22a0%22%2C%22a1%22%5D%2C%5B%22b0%22%5D%5D&arrayOfObjects=%5B%7B%22field%22%3A%22v0%22%7D%2C%7B%22field%22%3A%22v1%22%7D%5D&%3D%3D%3D=%3D%3D%3D&trueString=%22true%22&nested=%7B%22nestedNested%22%3A%7B%22field%22%3A%22nv%22%7D%7D",
-          body: None,
-          headers: None,
-          method: "GET",
-        },
-      )
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
-    },
-    ~jsonQuery=true,
-  )
+  let getHeight = Rest.route(() => {
+    ...(getHeight->Rest.params).definition,
+    jsonQuery: true,
+  })
+
+  let jsonQueryClient = Rest.client("http://localhost:3000", ~fetcher=async (
+    args
+  ): Rest.ApiFetcher.response => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/height?string=abc&null=null&bool=true&int=123&array=%5B%22a%22%2C%22b%22%2C%22c%22%5D&nan=null&float=1.2&matrix=%5B%5B%22a0%22%2C%22a1%22%5D%2C%5B%22b0%22%5D%5D&arrayOfObjects=%5B%7B%22field%22%3A%22v0%22%7D%2C%7B%22field%22%3A%22v1%22%7D%5D&%3D%3D%3D=%3D%3D%3D&trueString=%22true%22&nested=%7B%22nestedNested%22%3A%7B%22field%22%3A%22nv%22%7D%7D",
+        body: None,
+        headers: None,
+        method: "GET",
+      },
+    )
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+  })
 
   // BigInt is not supported by jsonQuery mode
   let _ = %raw(`delete input.bigint`)
-  t->Assert.deepEqual(await jsonQueryClient.call(getHeight, input), true)
+  t->Assert.deepEqual(await getHeight->Rest.fetch(input, ~client=jsonQueryClient), true)
 
   t->ExecutionContext.plan(4)
 })
@@ -767,7 +776,7 @@ asyncTest("Test query params support by Fastify", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -780,33 +789,36 @@ asyncTest("Test query params support by Fastify", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, input), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, input), true)
 
-  let jsonQueryClient = Rest.client(
-    ~baseUrl="http://localhost:3000",
-    ~fetcher=async (args): Rest.ApiFetcher.response => {
-      t->Assert.deepEqual(
-        args,
-        {
-          path: "http://localhost:3000/height?string=abc&bool=true&int=123&float=1.2&%3D%3D%3D=%3D%3D%3D&trueString=%22true%22",
-          body: None,
-          headers: None,
-          method: "GET",
-        },
-      )
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
-    },
-    ~jsonQuery=true,
-  )
+  let getHeight = Rest.route(() => {
+    ...(getHeight->Rest.params).definition,
+    jsonQuery: true,
+  })
 
-  t->Assert.deepEqual(await jsonQueryClient.call(getHeight, input), true)
+  let jsonQueryClient = Rest.client("http://localhost:3000", ~fetcher=async (
+    args
+  ): Rest.ApiFetcher.response => {
+    t->Assert.deepEqual(
+      args,
+      {
+        path: "http://localhost:3000/height?string=abc&bool=true&int=123&float=1.2&%3D%3D%3D=%3D%3D%3D&trueString=%22true%22",
+        body: None,
+        headers: None,
+        method: "GET",
+      },
+    )
+    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+  })
+
+  t->Assert.deepEqual(await getHeight->Rest.fetch(input, ~client=jsonQueryClient), true)
 
   t->ExecutionContext.plan(5)
 })
 
 asyncTest("Example test", async t => {
   let posts = []
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=async (
+  let client = Rest.client("http://localhost:3000", ~fetcher=async (
     args
   ): Rest.ApiFetcher.response => {
     if args.method === "POST" {
@@ -884,7 +896,8 @@ asyncTest("Example test", async t => {
   })
 
   t->Assert.deepEqual(
-    await client.call(
+    await Rest.fetch(
+      ~client,
       createPost,
       {
         "title": "How to use ReScript Rest?",
@@ -898,7 +911,8 @@ asyncTest("Example test", async t => {
   )
 
   t->Assert.deepEqual(
-    await client.call(
+    await Rest.fetch(
+      ~client,
       getPosts,
       {
         "skip": 0,
@@ -951,7 +965,7 @@ asyncTest("Multiple path params", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -965,7 +979,8 @@ asyncTest("Multiple path params", async t => {
   })
 
   t->Assert.deepEqual(
-    await client.call(
+    await Rest.fetch(
+      ~client,
       getSubComment,
       {
         "id": "abc",
@@ -1021,7 +1036,7 @@ asyncTest("Fastify server works with path containing columns", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     app->inject(args)
   })
 
@@ -1029,7 +1044,8 @@ asyncTest("Fastify server works with path containing columns", async t => {
     defaultUnknownKeys: Strip,
   })
   // Otherwise it will fail in the CI because of concurrency
-  let p = client.call(
+  let p = Rest.fetch(
+    ~client,
     getSubComment,
     {
       "id": "abc",
@@ -1043,7 +1059,8 @@ asyncTest("Fastify server works with path containing columns", async t => {
 
   // FIXME: Should return 404
   t->Assert.deepEqual(
-    await client.call(
+    await Rest.fetch(
+      ~client,
       getSubComment2,
       {
         "id": "abc",
@@ -1057,7 +1074,7 @@ asyncTest("Fastify server works with path containing columns", async t => {
 
 asyncTest("Fails to register two default responses", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       t->Assert.fail("Shouldn't be called")
     },
@@ -1079,7 +1096,7 @@ asyncTest("Fails to register two default responses", async t => {
 
   t->Assert.throws(
     () => {
-      client.call(getHeight, ())
+      Rest.fetch(~client, getHeight, ())
     },
     ~expectations={
       message: "[rescript-rest] Response for the \"default\" status registered multiple times",
@@ -1089,7 +1106,7 @@ asyncTest("Fails to register two default responses", async t => {
 
 asyncTest("Fails when response is not registered", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
@@ -1103,7 +1120,7 @@ asyncTest("Fails when response is not registered", async t => {
   })
 
   t->Assert.throws(
-    () => client.call(getHeight, ()),
+    () => Rest.fetch(~client, getHeight, ()),
     ~expectations={
       message: `[rescript-rest] At least single response should be registered`,
     },
@@ -1112,7 +1129,7 @@ asyncTest("Fails when response is not registered", async t => {
 
 asyncTest("Uses default response when explicit status is not defined", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
@@ -1133,12 +1150,12 @@ asyncTest("Uses default response when explicit status is not defined", async t =
     ],
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, ()), true)
 })
 
 asyncTest("Uses 2XX response when explicit status is not defined", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
@@ -1160,12 +1177,12 @@ asyncTest("Uses 2XX response when explicit status is not defined", async t => {
     ],
   })
 
-  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, ()), true)
 })
 
 asyncTest("Fails with an invalid response data", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       {data: false->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
@@ -1187,7 +1204,7 @@ asyncTest("Fails with an invalid response data", async t => {
   })
 
   await t->Assert.throwsAsync(
-    client.call(getHeight, ()),
+    Rest.fetch(~client, getHeight, ()),
     ~expectations={
       message: `[rescript-rest] Failed parsing response data. Reason: Expected true, received false`,
     },
@@ -1212,7 +1229,7 @@ asyncTest("Test POST request with rawBody", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -1226,7 +1243,7 @@ asyncTest("Test POST request with rawBody", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, Ok("[12, 123]")), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, createGame, Ok("[12, 123]")), true)
 
   t->ExecutionContext.plan(3)
 })
@@ -1251,7 +1268,7 @@ asyncTest("Test POST request with literal rawBody", async t => {
     true
   })
 
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => {
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => {
     t->Assert.deepEqual(
       args,
       {
@@ -1265,14 +1282,14 @@ asyncTest("Test POST request with literal rawBody", async t => {
     app->inject(args)
   })
 
-  t->Assert.deepEqual(await client.call(createGame, ()), true)
+  t->Assert.deepEqual(await Rest.fetch(~client, createGame, ()), true)
 
   t->ExecutionContext.plan(3)
 })
 
 asyncTest("Fails when rawBody is not a string-based schema", async t => {
   let client = Rest.client(
-    ~baseUrl="http://localhost:3000",
+    "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
       {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
     },
@@ -1288,7 +1305,7 @@ asyncTest("Fails when rawBody is not a string-based schema", async t => {
   })
 
   t->Assert.throws(
-    () => client.call(getHeight, 12),
+    () => Rest.fetch(~client, getHeight, 12),
     ~expectations={
       message: `[rescript-rest] Only string-based schemas are allowed in rawBody`,
     },
@@ -1315,8 +1332,8 @@ asyncTest("Fastify works with routes having multiple responses", async t => {
   app->Fastify.route(getHeight, async ({input: ()}) => {
     true
   })
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
-  t->Assert.deepEqual(await client.call(getHeight, ()), true)
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => app->inject(args))
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, ()), true)
 })
 
 asyncTest("Sends response without a data", async t => {
@@ -1329,8 +1346,8 @@ asyncTest("Sends response without a data", async t => {
 
   let app = Fastify.make()
   app->Fastify.route(getHeight, async _ => ())
-  let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
-  t->Assert.deepEqual(await client.call(getHeight, ()), ())
+  let client = Rest.client("http://localhost:3000", ~fetcher=args => app->inject(args))
+  t->Assert.deepEqual(await Rest.fetch(~client, getHeight, ()), ())
 })
 
 asyncTest("Graphql example https://x.com/ChShersh/status/1880968521200603364", async t => {
@@ -1398,6 +1415,6 @@ asyncTest("Graphql example https://x.com/ChShersh/status/1880968521200603364", a
 
   // let app = Fastify.make()
   // app->Fastify.route(getHeight, async () => ())
-  // let client = Rest.client(~baseUrl="http://localhost:3000", ~fetcher=args => app->inject(args))
-  // t->Assert.deepEqual(await client.call(getHeight, ()), ())
+  // let client = Rest.client("http://localhost:3000", ~fetcher=args => app->inject(args))
+  // t->Assert.deepEqual(await Rest.fetch(~client,getHeight, ()), ())
 })

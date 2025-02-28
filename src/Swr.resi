@@ -147,7 +147,7 @@ type options = {
 
 let use: (
   Rest.route<'input, 'response>,
-  ~baseUrl: string=?,
   ~input: 'input=?,
   ~options: options=?,
+  ~client: Rest.client=?,
 ) => return<'response>
