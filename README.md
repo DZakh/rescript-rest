@@ -90,6 +90,7 @@ let _ = app->Fastify.listen({port: 3000})
 ## Tutorials
 
 - Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
+- Learn more about ReScript Schema ([Dev.to](https://dev.to/dzakh/javascript-schema-library-from-the-future-5420))
 
 ## Table of Contents
 
@@ -151,7 +152,7 @@ Alternatively if you use ReScript Rest both on client and server and you don't c
 
 ```rescript
 let getPosts = Rest.rpc(() => {
-  input: S.sceham(s => {
+  input: S.schema(s => {
     "skip": s.matches(S.int),
     "take": s.matches(S.int),
     "page": s.matches(S.option(S.int)),
