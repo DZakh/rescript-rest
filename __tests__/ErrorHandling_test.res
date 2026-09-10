@@ -9,8 +9,8 @@ module Reply = {
 }
 
 let delay = milliseconds =>
-  Js.Promise2.make((~resolve, ~reject as _) => {
-    let _interval = Js.Global.setTimeout(_ => {
+  Promise.make((resolve, _) => {
+    let _interval = setTimeout(_ => {
       resolve()
     }, milliseconds)
   })
@@ -43,11 +43,11 @@ asyncTest("Global errors are propagated properly", async t => {
   app->Fastify.route(failingRoute, _input => {
     callCount := callCount.contents + 1
     switch callCount.contents {
-    | 0 => Js.Exn.raiseError("Sync error")
-    | 1 => delay(0)->Js.Promise2.then(_ => Js.Exn.raiseError("Async error"))
+    | 0 => JsError.throwWithMessage("Sync error")
+    | 1 => delay(0)->Promise.then(_ => JsError.throwWithMessage("Async error"))
     | _ => {
         t->Assert.pass(~message="Should be called")
-        raise(Not_found)
+        throw(Not_found)
       } // Sync ReScript exception
     }
   })

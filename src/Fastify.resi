@@ -48,7 +48,7 @@ type injectResponse = {
   trailers: dict<string>,
   payload: string,
   body: string,
-  json: unit => Js.Json.t,
+  json: unit => JSON.t,
   stream: unit => unknown,
   cookies: array<unknown>,
 }
@@ -83,7 +83,7 @@ module Swagger: {
   external plugin: plugin<options> = "default"
 
   @send
-  external generate: t => Js.Json.t = "swagger"
+  external generate: t => JSON.t = "swagger"
 }
 
 module Scalar: {

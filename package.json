@@ -41,22 +41,23 @@
     "rescript-openapi": "^0.4.0"
   },
   "devDependencies": {
-    "@dzakh/rescript-ava": "3.1.0",
+    "@dzakh/rescript-ava": "3.2.0",
+    "@rescript/runtime": "12.2.0",
     "@fastify/swagger": "9.2.0",
     "@scalar/fastify-api-reference": "1.25.60",
     "ava": "5.3.1",
     "c8": "10.1.2",
     "fastify": "5.1.0",
     "swr": "2.3.2",
-    "rescript": "11.1.4",
-    "rescript-schema": "9.0.1"
+    "rescript": "12.2.0",
+    "rescript-schema": "9.5.1"
   },
   "peerDependencies": {
     "@fastify/swagger": "9.x",
     "@scalar/fastify-api-reference": "^1.25.60",
     "fastify": "5.x",
     "swr": "^2.3.2",
-    "rescript": "11.x",
+    "rescript": "12.x",
     "rescript-schema": "^9.0.0"
   },
   "peerDependenciesMeta": {
