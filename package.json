@@ -25,7 +25,7 @@
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "scripts": {
     "coverage": "c8 --reporter=lcov npm test",
-    "integration": "node ./__tests__/IntegrationTest.res.js",
+    "integration": "node ./__tests__/IntegrationTest.res.mjs",
     "res": "rescript -w",
     "res:build": "rescript",
     "res:clean": "rescript clean",
@@ -33,7 +33,7 @@
   },
   "ava": {
     "files": [
-      "__tests__/**/*_test.res.js"
+      "__tests__/**/*_test.res.mjs"
     ]
   },
   "dependencies": {
