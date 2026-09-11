@@ -105,7 +105,7 @@ type injectResponse = {
   trailers: dict<string>,
   payload: string,
   body: string,
-  json: unit => Js.Json.t,
+  json: unit => JSON.t,
   stream: unit => unknown,
   cookies: array<unknown>,
 }
@@ -202,34 +202,34 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     let {inputSchema, outputSchema, responses, pathItems, isRawBody} = params
 
     let url = ref("")
-    for idx in 0 to pathItems->Js.Array2.length - 1 {
-      let pathItem = pathItems->Js.Array2.unsafe_get(idx)
+    for idx in 0 to pathItems->Array.length - 1 {
+      let pathItem = pathItems->Array.getUnsafe(idx)
       switch pathItem {
       | Static(static) => url := url.contents ++ static // FIXME: Escape : with ::
       | Param({name}) => url := url.contents ++ ":" ++ name
       }
     }
 
-    let routeSchemaResponses: dict<routeResponse> = Js.Dict.empty()
-    responses->Js.Array2.forEach(r => {
+    let routeSchemaResponses: dict<routeResponse> = Dict.make()
+    responses->Array.forEach(r => {
       let status = switch r.status {
       | Some(status) => status->(Obj.magic: int => string)
       | None => "default"
       }
-      let content = Js.Dict.empty()
-      content->Js.Dict.set(
+      let content = Dict.make()
+      content->Dict.set(
         "application/json",
         {
           schema: switch r.dataSchema->JSONSchema.make {
           | Ok(jsonSchema) => jsonSchema
           | Error(message) =>
-            Js.Exn.raiseError(
+            JsError.throwWithMessage(
               `Failed to create JSON-Schema for response with status ${status}. Error: ${message}`,
             )
           },
         },
       )
-      routeSchemaResponses->Js.Dict.set(
+      routeSchemaResponses->Dict.set(
         status,
         {
           description: ?r.description,
@@ -259,7 +259,7 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
               "error": "Bad Request",
               "message": error->S.Error.message,
             })
-            raise(%raw(`0`))
+            throw(%raw(`0`))
           }
         }
         fn({input: input})->Promise.thenResolve(implementationResult => {
@@ -278,15 +278,15 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     // Add request schemas only when swagger plugin enabled
     if (app->Obj.magic)["swagger"] {
       let addSchemaFor = location =>
-        switch (inputSchema->S.classify->Obj.magic)["fields"]->Js.Dict.unsafeGet(location) {
+        switch (inputSchema->S.classify->Obj.magic)["fields"]->Dict.getUnsafe(location) {
         | Some(item: S.item) =>
           switch item.schema->JSONSchema.make {
           | Ok(jsonSchema) =>
             routeSchema
             ->(Obj.magic: routeSchema => dict<JSONSchema.t>)
-            ->Js.Dict.set(location, jsonSchema)
+            ->Dict.set(location, jsonSchema)
           | Error(message) =>
-            Js.Exn.raiseError(
+            JsError.throwWithMessage(
               `Failed to create JSON-Schema for ${location} of ${(params.method :> string)} ${params.path} route. Error: ${message}`,
             )
           }
@@ -324,7 +324,7 @@ module Swagger = {
   external plugin: plugin<options> = "default"
 
   @send
-  external generate: t => Js.Json.t = "swagger"
+  external generate: t => JSON.t = "swagger"
 }
 
 module Scalar = {

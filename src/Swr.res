@@ -43,7 +43,7 @@ type options = {
 
 @module("swr")
 external useSwrInternal: (
-  Js.Null.t<string>,
+  Null.t<string>,
   string => promise<'data>,
   ~options: options=?,
 ) => return<'data> = "default"
@@ -51,7 +51,7 @@ external useSwrInternal: (
 let use = (route, ~input=?, ~options=?, ~client: option<Rest.client>=?) => {
   let {method} = route->Rest.params
   if method !== Get {
-    Js.Exn.raiseError(`[rescript-rest] Only GET requests are supported by Swr`)
+    JsError.throwWithMessage(`[rescript-rest] Only GET requests are supported by Swr`)
   }
   useSwrInternal(
     switch input {

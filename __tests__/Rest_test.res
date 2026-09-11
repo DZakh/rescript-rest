@@ -87,10 +87,10 @@ asyncTest("Validation error on not providing body", async t => {
 
   t->assertSchemaCode(
     ~schema=(route->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["a"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="a"){e[2](v2)}}return {"a":v0["a"],}}`,
+    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["a"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="a"){e[2](v2)}}return {"a":v1,}}`,
   )
   t->assertSchemaCode(
-    ~schema=((route->Rest.params).responses->Js.Array2.unsafe_get(0)).schema,
+    ~schema=((route->Rest.params).responses->Array.getUnsafe(0)).schema,
     `i=>{let v0=i["data"];if(typeof v0!=="boolean"){e[0](v0)}return v0}`,
   )
 })
@@ -154,7 +154,7 @@ asyncTest("Test simple POST request", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}return {"userName":v1,}}`,
+    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}return {"userName":v1,}}`,
   )
 
   t->ExecutionContext.plan(5)
@@ -222,11 +222,11 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v0["id"],"user":{"userName":v0["userName"],},"after":v0["after"],}}`,
+    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v1,"user":{"userName":v2,},"after":v3,}}`,
   )
   t->assertSchemaCode(
-    ~schema=((createGame->Rest.params).responses->Js.Array2.unsafe_get(0)).schema,
-    `i=>{let v0=i["data"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v0["id"],"user":{"userName":v0["userName"],},"after":v0["after"],}}`,
+    ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
+    `i=>{let v0=i["data"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v1,"user":{"userName":v2,},"after":v3,}}`,
   )
 
   let failingCreateGame = Rest.route(() => {
@@ -442,11 +442,11 @@ asyncTest("Test request with mixed body and header data", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"],v3=i["headers"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v0["user_name"],"version":v4,}}`,
+    `i=>{let v0=i["body"],v3=i["headers"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v1,"version":v4,}}`,
   )
   t->assertSchemaCode(
-    ~schema=((createGame->Rest.params).responses->Js.Array2.unsafe_get(0)).schema,
-    `i=>{let v0=i["data"],v3=i["headers"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v0["user_name"],"version":v4,}}`,
+    ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
+    `i=>{let v0=i["data"],v3=i["headers"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v1,"version":v4,}}`,
   )
 })
 
@@ -596,7 +596,7 @@ asyncTest("Test simple GET request", async t => {
 let bigint: S.t<bigint> = S.custom("BigInt", s => {
   {
     parser: unknown => {
-      if Js.typeof(unknown) !== "bigint" {
+      if typeof(unknown) !== #bigint {
         s.fail("Expected bigint")
       } else {
         unknown->Obj.magic
@@ -680,7 +680,7 @@ asyncTest("Test query params encoding to path", async t => {
         method: "GET",
       },
     )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    {data: true->Obj.magic, status: 200, headers: Dict.make()}
   })
 
   t->Assert.deepEqual(await Rest.fetch(~client, getHeight, input), true)
@@ -702,7 +702,7 @@ asyncTest("Test query params encoding to path", async t => {
         method: "GET",
       },
     )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    {data: true->Obj.magic, status: 200, headers: Dict.make()}
   })
 
   // BigInt is not supported by jsonQuery mode
@@ -810,7 +810,7 @@ asyncTest("Test query params support by Fastify", async t => {
         method: "GET",
       },
     )
-    {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    {data: true->Obj.magic, status: 200, headers: Dict.make()}
   })
 
   t->Assert.deepEqual(await getHeight->Rest.fetch(input, ~client=jsonQueryClient), true)
@@ -833,9 +833,9 @@ asyncTest("Example test", async t => {
           method: "POST",
         },
       )
-      let post = args.body->Obj.magic->Js.Json.parseExn->Obj.magic
-      let _ = posts->Js.Array2.push(post)
-      {data: post->Obj.magic, status: 201, headers: Js.Dict.empty()}
+      let post = args.body->Obj.magic->JSON.parseOrThrow->Obj.magic
+      let _ = posts->Array.push(post)
+      {data: post->Obj.magic, status: 201, headers: Dict.make()}
     } else {
       t->Assert.deepEqual(
         args,
@@ -847,9 +847,9 @@ asyncTest("Example test", async t => {
         },
       )
       {
-        data: {"posts": posts, "total": posts->Js.Array2.length}->Obj.magic,
+        data: {"posts": posts, "total": posts->Array.length}->Obj.magic,
         status: 200,
-        headers: Js.Dict.empty(),
+        headers: Dict.make(),
       }
     }
   })
@@ -1110,7 +1110,7 @@ asyncTest("Fails when response is not registered", async t => {
   let client = Rest.client(
     "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+      {data: true->Obj.magic, status: 200, headers: Dict.make()}
     },
   )
 
@@ -1133,7 +1133,7 @@ asyncTest("Uses default response when explicit status is not defined", async t =
   let client = Rest.client(
     "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+      {data: true->Obj.magic, status: 200, headers: Dict.make()}
     },
   )
 
@@ -1159,7 +1159,7 @@ asyncTest("Uses 2XX response when explicit status is not defined", async t => {
   let client = Rest.client(
     "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+      {data: true->Obj.magic, status: 200, headers: Dict.make()}
     },
   )
 
@@ -1186,7 +1186,7 @@ asyncTest("Fails with an invalid response data", async t => {
   let client = Rest.client(
     "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
-      {data: false->Obj.magic, status: 200, headers: Js.Dict.empty()}
+      {data: false->Obj.magic, status: 200, headers: Dict.make()}
     },
   )
 
@@ -1223,10 +1223,10 @@ asyncTest("Test Rest.rpc", async t => {
         path: "http://localhost:3000/getHeight",
         method: "POST",
         body: Some("false"->Obj.magic),
-        headers: Some(Js.Dict.fromArray([("content-type", "application/json"->Obj.magic)])),
+        headers: Some(Dict.fromArray([("content-type", "application/json"->Obj.magic)])),
       },
     )
-    {data: false->Obj.magic, status: 200, headers: Js.Dict.empty()}
+    {data: false->Obj.magic, status: 200, headers: Dict.make()}
   })
 
   let getHeight = Rest.rpc(() => {
@@ -1241,7 +1241,7 @@ asyncTest("Test POST request with rawBody", async t => {
   let createGame = Rest.route(() => {
     path: "/game",
     method: Post,
-    input: s => s.rawBody(S.string->S.to(s => Ok(s))),
+    input: s => s.rawBody(S.string->S.shape(s => Ok(s))),
     responses: [
       s => {
         s.data(S.bool)
@@ -1317,7 +1317,7 @@ asyncTest("Fails when rawBody is not a string-based schema", async t => {
   let client = Rest.client(
     "http://localhost:3000",
     ~fetcher=async (_): Rest.ApiFetcher.response => {
-      {data: true->Obj.magic, status: 200, headers: Js.Dict.empty()}
+      {data: true->Obj.magic, status: 200, headers: Dict.make()}
     },
   )
 

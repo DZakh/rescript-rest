@@ -1,20 +1,20 @@
 @@uncurried
 
 type req = private {
-  cookies: Js.Dict.t<string>,
+  cookies: dict<string>,
   method: Rest.method,
   url: string,
   port: int,
-  body: Js.Json.t,
-  query: Js.Json.t,
-  headers: Js.Dict.t<string>,
+  body: JSON.t,
+  query: JSON.t,
+  headers: dict<string>,
   rawHeaders: array<string>,
   rawTrailers: array<string>,
   aborted: bool,
   complete: bool,
   statusCode: Rest.Response.numiricStatus,
   statusMessage: string,
-  trailers: Js.Dict.t<string>,
+  trailers: dict<string>,
 }
 
 type reply
@@ -25,10 +25,10 @@ type rec res = private {
   setHeader: (string, string) => unit,
   status: int => res,
   end: unit => reply,
-  json: Js.Json.t => reply,
+  json: JSON.t => reply,
   // The type is not 100% correct.
   // It asccepts a string, object or a Buffer
-  send: Js.Json.t => reply,
+  send: JSON.t => reply,
 }
 
 type apiConfig = {

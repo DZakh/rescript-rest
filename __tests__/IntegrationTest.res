@@ -48,7 +48,7 @@ let main = async () => {
 
   let _ = await app->Fastify.listen({port: 3000})
 
-  Js.log("OpenAPI reference: http://localhost:3000/reference")
+  Console.log("OpenAPI reference: http://localhost:3000/reference")
 
   // let client = Rest.client(~baseUrl=address)
   // let _ = client.call(createGame, %raw(`{"userName": 123}`))->Promise.thenResolve(response => {

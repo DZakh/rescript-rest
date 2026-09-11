@@ -6,7 +6,7 @@ module Promise = {
   type t<+'a> = promise<'a>
 
   @new
-  external make: (('a => unit, Js.Exn.t => unit) => unit) => t<'a> = "Promise"
+  external make: (('a => unit, JsExn.t => unit) => unit) => t<'a> = "Promise"
 }
 
 module Exn = {
@@ -15,7 +15,7 @@ module Exn = {
   @new
   external makeError: string => error = "Error"
 
-  let raiseAny = (any: 'any): 'a => any->Obj.magic->raise
+  let raiseAny = (any: 'any): 'a => any->Obj.magic->throw
 
   let raiseError: error => 'a = raiseAny
 }
@@ -24,20 +24,20 @@ module Exn = {
 let panic = message => Exn.raiseError(Exn.makeError(`[rescript-rest] ${message}`))
 
 type req = private {
-  cookies: Js.Dict.t<string>,
+  cookies: dict<string>,
   method: Rest.method,
   url: string,
   port: int,
-  body: Js.Json.t,
-  query: Js.Json.t,
-  headers: Js.Dict.t<string>,
+  body: JSON.t,
+  query: JSON.t,
+  headers: dict<string>,
   rawHeaders: array<string>,
   rawTrailers: array<string>,
   aborted: bool,
   complete: bool,
   statusCode: Rest.Response.numiricStatus,
   statusMessage: string,
-  trailers: Js.Dict.t<string>,
+  trailers: dict<string>,
 }
 // @send
 // external destroy: (req, ~error: option<Js.Exn.t>=?) => bool = "destroy"
@@ -50,10 +50,10 @@ type rec res = private {
   setHeader: (string, string) => unit,
   status: int => res,
   end: unit => reply,
-  json: Js.Json.t => reply,
+  json: JSON.t => reply,
   // The type is not 100% correct.
   // It asccepts a string, object or a Buffer
-  send: Js.Json.t => reply,
+  send: JSON.t => reply,
 }
 
 type apiConfig = {
@@ -73,7 +73,7 @@ let handler = (route, implementation) => {
   let {pathItems, path, method, isRawBody, outputSchema, inputSchema} = route->Rest.params
 
   // TODO: Validate that we match the req path
-  pathItems->Js.Array2.forEach(pathItem => {
+  pathItems->Array.forEach(pathItem => {
     switch pathItem {
     | Param(param) =>
       panic(
@@ -98,9 +98,9 @@ let handler = (route, implementation) => {
         })
         (req->Obj.magic)["body"] = isRawBody
           ? rawBody.contents->Obj.magic
-          : Js.Json.parseExn(rawBody.contents)
+          : JSON.parseOrThrow(rawBody.contents)
       } else if isRawBody {
-        Js.Exn.raiseError(
+        JsError.throwWithMessage(
           "Routes with Raw Body require to disable body parser for your handler. Add `let config: RestNextJs.config = {api: {bodyParser: false}}` to the file with your handler to make it work.",
         )
       }
@@ -118,19 +118,21 @@ let handler = (route, implementation) => {
           switch headers {
           | Some(headers) =>
             headers
-            ->Js.Dict.keys
-            ->Js.Array2.forEach(key => {
-              res.setHeader(key, headers->Js.Dict.unsafeGet(key))
+            ->Dict.keysToArray
+            ->Array.forEach(key => {
+              res.setHeader(key, headers->Dict.getUnsafe(key))
             })
           | None => ()
           }
           res.status(%raw(`data.status || 200`)).json(data["data"])
         } catch {
         | S.Raised(error) =>
-          Js.Exn.raiseError(`Unexpected error in the ${path} route: ${error->S.Error.message}`)
+          JsError.throwWithMessage(
+            `Unexpected error in the ${path} route: ${error->S.Error.message}`,
+          )
         }
       | exception S.Raised(error) =>
-        res.status(400).json({"error": error->S.Error.message->Js.Json.string}->Obj.magic)
+        res.status(400).json({"error": error->S.Error.message->JSON.Encode.string}->Obj.magic)
       }
     }
   }

@@ -3,7 +3,7 @@ open RescriptSchema
 
 let mockClient = () => {
   Rest.client("http://localhost:3000", ~fetcher=async (_): Rest.ApiFetcher.response => {
-    Js.Exn.raiseError("Not implemented")
+    JsError.throwWithMessage("Not implemented")
   })
 }
 

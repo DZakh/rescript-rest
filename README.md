@@ -131,12 +131,12 @@ And ReScript Rest itself:
 npm install rescript-rest
 ```
 
-Add `rescript-rest` to `bs-dependencies` in your `rescript.json`:
+Add `rescript-rest` to `dependencies` in your `rescript.json`:
 
 ```diff
 {
   ...
-+ "bs-dependencies": ["rescript-rest"],
++ "dependencies": ["rescript-rest"],
 }
 ```
 

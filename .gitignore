@@ -1,5 +1,5 @@
 node_modules
 lib
 .bsb.lock
-__tests__/*.res.js
+__tests__/*.res.mjs
 coverage
