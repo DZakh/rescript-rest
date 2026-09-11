@@ -1,6 +1,5 @@
 @@uncurried
 
-open RescriptSchema
 
 module Promise = {
   type t<+'a> = promise<'a>
@@ -105,7 +104,7 @@ let handler = (route, implementation) => {
         )
       }
 
-      switch req->S.parseOrThrow(inputSchema) {
+      switch req->S.parseOrThrow(~to=inputSchema) {
       | input =>
         try {
           let implementationResult = await implementation({
@@ -113,7 +112,7 @@ let handler = (route, implementation) => {
             res,
             input,
           })
-          let data: {..} = implementationResult->S.reverseConvertOrThrow(outputSchema)->Obj.magic
+          let data: {..} = implementationResult->S.convertOrThrow(~from=outputSchema, ~to=S.unknown)->Obj.magic
           let headers: option<dict<string>> = data["headers"]
           switch headers {
           | Some(headers) =>
@@ -126,13 +125,13 @@ let handler = (route, implementation) => {
           }
           res.status(%raw(`data.status || 200`)).json(data["data"])
         } catch {
-        | S.Raised(error) =>
+        | S.Exn(error) =>
           JsError.throwWithMessage(
-            `Unexpected error in the ${path} route: ${error->S.Error.message}`,
+            `Unexpected error in the ${path} route: ${error.message}`,
           )
         }
-      | exception S.Raised(error) =>
-        res.status(400).json({"error": error->S.Error.message->JSON.Encode.string}->Obj.magic)
+      | exception S.Exn(error) =>
+        res.status(400).json({"error": error.message->JSON.Encode.string}->Obj.magic)
       }
     }
   }

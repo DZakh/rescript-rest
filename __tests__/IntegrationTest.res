@@ -1,4 +1,3 @@
-open RescriptSchema
 
 module Promise = {
   type t<+'a> = promise<'a>

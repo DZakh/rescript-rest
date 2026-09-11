@@ -1,5 +1,4 @@
 open Ava
-open RescriptSchema
 
 let getCleanedSwagger = async app => {
   await app->Fastify.ready
@@ -385,7 +384,7 @@ asyncTest("OpenAPI with a complex request having different types", async t => {
               { "in": 'path',
                 "name": 'id',
                 "required": true,
-                "schema": { "enum": [ 123 ], "type": 'integer' } }, // TODO: Verify whether integer is valid in OpenAPI
+                "schema": { "enum": [ 123 ], "type": 'number' } },
               { "in": 'header',
                 "name": 'x-header',
                 "required": true,

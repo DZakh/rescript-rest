@@ -1,5 +1,4 @@
 open Ava
-open RescriptSchema
 
 module Reply = {
   type t

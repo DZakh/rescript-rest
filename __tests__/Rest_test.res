@@ -1,23 +1,11 @@
 open Ava
-open RescriptSchema
 
-S.setGlobalConfig({
-  defaultUnknownKeys: Strict,
+S.global({
+  defaultAdditionalItems: Strict,
 })
 
 let assertSchemaCode = (t, ~schema, code) => {
-  t->Assert.is(
-    (
-      if schema->S.isAsync {
-        let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Async, ~typeValidation=true)
-        fn->Obj.magic
-      } else {
-        let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Sync, ~typeValidation=true)
-        fn->Obj.magic
-      }
-    )["toString"](),
-    code,
-  )
+  t->Assert.is((S.compileParseOrThrow(~to=schema)->Obj.magic)["toString"](), code)
 }
 
 let inject = async (app: Fastify.t, args: Rest.ApiFetcher.args): Rest.ApiFetcher.response => {
@@ -80,18 +68,18 @@ asyncTest("Validation error on not providing body", async t => {
     response.json(),
     %raw(`{
       "error": "Bad Request",
-      "message": "Failed parsing at [\"body\"]. Reason: Expected { a: string; }, received undefined",
+      "message": "Failed at body: Expected { a: string; }, received undefined",
       "statusCode": 400
     }`),
   )
 
   t->assertSchemaCode(
     ~schema=(route->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["a"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="a"){e[2](v2)}}return {"a":v1,}}`,
+    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.a,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="a")e[1](v2);return {a:v1}}`,
   )
   t->assertSchemaCode(
     ~schema=((route->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i["data"];if(typeof v0!=="boolean"){e[0](v0)}return v0}`,
+    `i=>{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="boolean"||e[1](v1);return v1}`,
   )
 })
 
@@ -148,13 +136,13 @@ asyncTest("Test simple POST request", async t => {
   await t->Assert.throwsAsync(
     Rest.fetch(~client, createGame, %raw(`{"userName": 123}`)),
     ~expectations={
-      message: `[rescript-rest] Unexpected response status "400". Message: Failed parsing at ["body"]["user_name"]. Reason: Expected string, received 123`,
+      message: `[rescript-rest] Unexpected response status "400". Message: Failed at body.user_name: Expected string, received 123`,
     },
   )
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}return {"userName":v1,}}`,
+    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);return {userName:v1}}`,
   )
 
   t->ExecutionContext.plan(5)
@@ -222,11 +210,11 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v1,"user":{"userName":v2,},"after":v3,}}`,
+    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[4](v0);let v1=v0.id,v2=v0.userName,v3=v0.after,v4;typeof v1==="number"&&v1<=2147483647&&v1>=-2147483648&&v1%1==0||e[0](v1);typeof v2==="string"||e[1](v2);typeof v3==="string"||e[2](v3);for(v4 in v0)if(v4!=="id"&&v4!=="userName"&&v4!=="after")e[3](v4);return {id:v1,user:{userName:v2},after:v3}}`,
   )
   t->assertSchemaCode(
     ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i["data"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["id"],v2=v0["userName"],v3=v0["after"],v4;if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}for(v4 in v0){if(v4!=="id"&&v4!=="userName"&&v4!=="after"){e[4](v4)}}return {"id":v1,"user":{"userName":v2,},"after":v3,}}`,
+    `i=>{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[5](v1);let v2=v1.id,v3=v1.userName,v4=v1.after,v5;typeof v2==="number"&&v2<=2147483647&&v2>=-2147483648&&v2%1==0||e[1](v2);typeof v3==="string"||e[2](v3);typeof v4==="string"||e[3](v4);for(v5 in v1)if(v5!=="id"&&v5!=="userName"&&v5!=="after")e[4](v5);return {id:v2,user:{userName:v3},after:v4}}`,
   )
 
   let failingCreateGame = Rest.route(() => {
@@ -243,7 +231,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   t->Assert.throws(
     () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
-      message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
+      message: `[Sury] The field "body" defined twice with incompatible schemas`,
     },
     ~message="Can't use s.field and s.body together with S.object schema",
   )
@@ -255,7 +243,10 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
       {
         "id": s.field("id", S.int),
         "user": s.body(
-          S.schema(s => {"userName": s.matches(S.string)})->S.transform(_ => {parser: v => v}),
+          S.schema(s => {"userName": s.matches(S.string)})->S.to(
+            S.schema(s => {"userName": s.matches(S.string)}),
+            ~custom={decode: Sync(v => v), encode: Sync(v => v)},
+          ),
         ),
         "after": s.field("after", S.string),
       },
@@ -264,9 +255,9 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   t->Assert.throws(
     () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
-      message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
+      message: `[Sury] The field "body" defined twice with incompatible schemas`,
     },
-    ~message="Can't use s.field and s.body together with S.schema->S.transform schema",
+    ~message="Can't use s.field and s.body together with S.schema->S.to schema",
   )
 
   let failingCreateGame = Rest.route(() => {
@@ -283,7 +274,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   t->Assert.throws(
     () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
-      message: `[rescript-schema] The field "body" defined twice with incompatible schemas`,
+      message: `[Sury] The field "body" defined twice with incompatible schemas`,
     },
     ~message="Can't use s.field and s.body together with S.string schema",
   )
@@ -311,7 +302,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   t->Assert.throws(
     () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
-      message: `[rescript-schema] The field "data" defined twice with incompatible schemas`,
+      message: `[Sury] The field "data" defined twice with incompatible schemas`,
     },
     ~message="Can't use s.field and s.data together with S.object schema",
   )
@@ -339,7 +330,7 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
   t->Assert.throws(
     () => Rest.fetch(~client, failingCreateGame, data),
     ~expectations={
-      message: `[rescript-schema] The field "data" defined twice with incompatible schemas`,
+      message: `[Sury] The field "data" defined twice with incompatible schemas`,
     },
     ~message="Can't use s.field and s.data together with S.string schema",
   )
@@ -442,11 +433,11 @@ asyncTest("Test request with mixed body and header data", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i["body"],v3=i["headers"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v1,"version":v4,}}`,
+    `i=>{let v0=i.body,v3=i.headers;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);let v4;try{v4=e[3](v3["x-version"])}catch(x){e[4](x)}typeof v4==="number"&&v4<=2147483647&&v4>=-2147483648&&v4%1==0||e[5](v4);return {userName:v1,version:v4}}`,
   )
   t->assertSchemaCode(
     ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i["data"],v3=i["headers"];if(typeof v0!=="object"||!v0||Array.isArray(v0)){e[0](v0)}let v1=v0["user_name"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="user_name"){e[2](v2)}}let v4=e[3](v3["x-version"]);if(typeof v4!=="number"||v4>2147483647||v4<-2147483648||v4%1!==0){e[4](v4)}return {"userName":v1,"version":v4,}}`,
+    `i=>{let v0=i.status,v1=i.data,v4=i.headers;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[3](v1);let v2=v1.user_name,v3;typeof v2==="string"||e[1](v2);for(v3 in v1)if(v3!=="user_name")e[2](v3);let v5;try{v5=e[4](v4["x-version"])}catch(x){e[5](x)}typeof v5==="number"&&v5<=2147483647&&v5>=-2147483648&&v5%1==0||e[6](v5);return {userName:v2,version:v5}}`,
   )
 })
 
@@ -593,18 +584,7 @@ asyncTest("Test simple GET request", async t => {
   t->ExecutionContext.plan(3)
 })
 
-let bigint: S.t<bigint> = S.custom("BigInt", s => {
-  {
-    parser: unknown => {
-      if typeof(unknown) !== #bigint {
-        s.fail("Expected bigint")
-      } else {
-        unknown->Obj.magic
-      }
-    },
-    serializer: unknown => unknown,
-  }
-})
+let bigint: S.t<bigint> = S.bigint
 
 asyncTest("Test query params encoding to path", async t => {
   let routeFn = (): Rest.definition<'i, 'o> => {
@@ -614,7 +594,7 @@ asyncTest("Test query params encoding to path", async t => {
       {
         "string": s.query("string", S.string),
         "unit": s.query("unit", S.unit),
-        "null": s.query("null", S.null(S.string)),
+        "null": s.query("null", S.nullAsOption(S.string)),
         "bool": s.query("bool", S.bool),
         "int": s.query("int", S.int),
         "bigint": s.query("bigint", bigint),
@@ -720,7 +700,7 @@ asyncTest("Test query params support by Fastify", async t => {
       {
         "string": s.query("string", S.string),
         "unit": s.query("unit", S.unit),
-        // "null": s.query("null", S.null(S.string)),
+        // "null": s.query("null", S.nullAsOption(S.string)),
         "bool": s.query("bool", S.bool),
         "int": s.query("int", S.int),
         // "array": s.query("array", S.array(S.string)),
@@ -1042,8 +1022,8 @@ asyncTest("Fastify server works with path containing columns", async t => {
     app->inject(args)
   })
 
-  S.setGlobalConfig({
-    defaultUnknownKeys: Strip,
+  S.global({
+    defaultAdditionalItems: Strip,
   })
   // Otherwise it will fail in the CI because of concurrency
   let p = Rest.fetch(
@@ -1053,8 +1033,8 @@ asyncTest("Fastify server works with path containing columns", async t => {
       "id": "abc",
     },
   )
-  S.setGlobalConfig({
-    defaultUnknownKeys: Strict,
+  S.global({
+    defaultAdditionalItems: Strict,
   })
 
   t->Assert.deepEqual(await p, true)
@@ -1385,10 +1365,13 @@ asyncTest("Graphql example https://x.com/ChShersh/status/1880968521200603364", a
       let _ = s.header("User-Agent", S.literal("chshersh/github-tui"))
       s.field(
         "query",
-        S.string->S.transform(
-          _ => {
-            serializer: data =>
-              `query {
+        S.string->S.to(
+          S.schema(s => {"owner": s.matches(S.string), "repo": s.matches(S.string)}),
+          ~custom={
+            decode: Never,
+            encode: Sync(
+              data =>
+                `query {
                 repository(owner: "${data["owner"]}", name: "${data["repo"]}") {
                   issues(first: 2, states: [OPEN], orderBy: {field: CREATED_AT, direction: DESC}) {
                     nodes {
@@ -1401,6 +1384,7 @@ asyncTest("Graphql example https://x.com/ChShersh/status/1880968521200603364", a
                   }
                 }
               }`,
+            ),
           },
         ),
       )

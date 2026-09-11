@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      rescript-json-schema:
-        specifier: ^7.2.0
-        version: 7.3.0(rescript-schema@9.5.1(rescript@12.2.0))(rescript@12.2.0)
-      rescript-openapi:
-        specifier: ^0.4.0
-        version: 0.4.0(rescript-schema@9.5.1(rescript@12.2.0))(rescript@12.2.0)
     devDependencies:
       '@dzakh/rescript-ava':
         specifier: 3.2.0
@@ -39,9 +32,9 @@ importers:
       rescript:
         specifier: 12.2.0
         version: 12.2.0
-      rescript-schema:
-        specifier: 9.5.1
-        version: 9.5.1(rescript@12.2.0)
+      sury:
+        specifier: 11.0.0-rc.3
+        version: 11.0.0-rc.3(rescript@12.2.0)
       swr:
         specifier: 2.3.2
         version: 2.3.2(react@19.3.0)
@@ -814,25 +807,6 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  rescript-json-schema@7.3.0:
-    resolution: {integrity: sha512-zoUEIq/6RFtPLQDiyuZBjmZq51lD7ETFfkCM2Oy7C9PWrAqTTOh1aeeyxFSmTvKwHQKpW3Gu8csenrlgVzBG6g==}
-    peerDependencies:
-      rescript: 11.x
-      rescript-schema: ^9.0.0
-
-  rescript-openapi@0.4.0:
-    resolution: {integrity: sha512-4BnaFtH/1cnoFp5kaHSx/OP+YjZDOZSBbjbriFtKFNF4g0/K6NOag1NwiSbT4bgH+z18Be3/NJGa1BExRxCoRg==}
-    peerDependencies:
-      rescript: 11.x
-
-  rescript-schema@9.5.1:
-    resolution: {integrity: sha512-g2UEMqZ0IVkW8Os7vDs3JrcSS9pyQNubksY+doa3wgt86Y+c9ruvynikDrZLvZYQyQyF1vLJc05r0r2/jLdeZQ==}
-    peerDependencies:
-      rescript: ^12.0.0-alpha.8
-    peerDependenciesMeta:
-      rescript:
-        optional: true
-
   rescript@12.2.0:
     resolution: {integrity: sha512-1Jf2cmNhyx5Mj2vwZ4XXPcXvNSjGj9D1jPBUcoqIOqRpLPo1ch2Ta/7eWh23xAHWHK5ow7BCDyYFjvZSjyjLzg==}
     engines: {node: '>=20.11.0'}
@@ -940,6 +914,14 @@ packages:
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
+
+  sury@11.0.0-rc.3:
+    resolution: {integrity: sha512-lDbLdwBlfAuY6QVvbwR93IG6OJhTPDem3c4Y+AUzBLX+ixg+NG+ZcIihr46IdRIMAY4MwMzjqKsKhd6+b1JTIQ==}
+    peerDependencies:
+      rescript: 12.x
+    peerDependenciesMeta:
+      rescript:
+        optional: true
 
   swr@2.3.2:
     resolution: {integrity: sha512-RosxFpiabojs75IwQ316DGoDRmOqtiAj0tg8wCcbEu4CiLZBs/a9QNtHV7TUfDXmmlgqij/NqzKq/eLelyv9xA==}
@@ -1779,22 +1761,6 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  rescript-json-schema@7.3.0(rescript-schema@9.5.1(rescript@12.2.0))(rescript@12.2.0):
-    dependencies:
-      rescript: 12.2.0
-      rescript-schema: 9.5.1(rescript@12.2.0)
-
-  rescript-openapi@0.4.0(rescript-schema@9.5.1(rescript@12.2.0))(rescript@12.2.0):
-    dependencies:
-      rescript: 12.2.0
-      rescript-json-schema: 7.3.0(rescript-schema@9.5.1(rescript@12.2.0))(rescript@12.2.0)
-    transitivePeerDependencies:
-      - rescript-schema
-
-  rescript-schema@9.5.1(rescript@12.2.0):
-    optionalDependencies:
-      rescript: 12.2.0
-
   rescript@12.2.0:
     dependencies:
       '@rescript/runtime': 12.2.0
@@ -1894,6 +1860,10 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
+
+  sury@11.0.0-rc.3(rescript@12.2.0):
+    optionalDependencies:
+      rescript: 12.2.0
 
   swr@2.3.2(react@19.3.0):
     dependencies:
