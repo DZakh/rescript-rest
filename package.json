@@ -45,7 +45,7 @@
     "c8": "10.1.2",
     "fastify": "5.1.0",
     "rescript": "12.2.0",
-    "sury": "11.0.0",
+    "sury": "11.1.0-rc.0",
     "swr": "2.3.2"
   },
   "peerDependencies": {

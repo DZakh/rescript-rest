@@ -33,8 +33,8 @@ importers:
         specifier: 12.2.0
         version: 12.2.0
       sury:
-        specifier: 11.0.0
-        version: 11.0.0(rescript@12.2.0)
+        specifier: 11.1.0-rc.0
+        version: 11.1.0-rc.0(rescript@12.2.0)
       swr:
         specifier: 2.3.2
         version: 2.3.2(react@19.3.0)
@@ -915,8 +915,8 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
-  sury@11.0.0:
-    resolution: {integrity: sha512-ixo9P04kr1VB15m+9OX1llkGYityBl5z79XBZqU4hIUjixbdoaoK92wO25DsPqVH8UjyB1rbotf8Gqj0K/uRwA==}
+  sury@11.1.0-rc.0:
+    resolution: {integrity: sha512-loD3bJspQnTNAoV0pj39/k0KS9MJ5iCvkyc8kbYEDT92F28nLtGzjkSYWfKCCR1R57seL72Ch5I4X9+iRnkHng==}
     peerDependencies:
       rescript: 12.x
     peerDependenciesMeta:
@@ -1861,7 +1861,7 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
-  sury@11.0.0(rescript@12.2.0):
+  sury@11.1.0-rc.0(rescript@12.2.0):
     optionalDependencies:
       rescript: 12.2.0
 

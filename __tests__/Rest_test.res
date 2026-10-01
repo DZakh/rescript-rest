@@ -75,11 +75,11 @@ asyncTest("Validation error on not providing body", async t => {
 
   t->assertSchemaCode(
     ~schema=(route->Rest.params).inputSchema,
-    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.a,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="a")e[1](v2);return {a:v1}}`,
+    `i=>{try{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.a,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="a")e[1](v2);return {a:v1}}catch(v3){e[3](v3)}}`,
   )
   t->assertSchemaCode(
     ~schema=((route->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="boolean"||e[1](v1);return v1}`,
+    `i=>{try{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="boolean"||e[1](v1);return v1}catch(v2){e[2](v2)}}`,
   )
 })
 
@@ -142,7 +142,7 @@ asyncTest("Test simple POST request", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);return {userName:v1}}`,
+    `i=>{try{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);return {userName:v1}}catch(v3){e[3](v3)}}`,
   )
 
   t->ExecutionContext.plan(5)
@@ -210,11 +210,11 @@ asyncTest("Test mixing s.body/s.data and s.field", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[4](v0);let v1=v0.id,v2=v0.userName,v3=v0.after,v4;typeof v1==="number"&&v1<=2147483647&&v1>=-2147483648&&v1%1==0||e[0](v1);typeof v2==="string"||e[1](v2);typeof v3==="string"||e[2](v3);for(v4 in v0)if(v4!=="id"&&v4!=="userName"&&v4!=="after")e[3](v4);return {id:v1,user:{userName:v2},after:v3}}`,
+    `i=>{try{let v0=i.body;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[4](v0);let v1=v0.id,v2=v0.userName,v3=v0.after,v4;typeof v1==="number"&&v1<=2147483647&&v1>=-2147483648&&v1%1==0||e[0](v1);typeof v2==="string"||e[1](v2);typeof v3==="string"||e[2](v3);for(v4 in v0)if(v4!=="id"&&v4!=="userName"&&v4!=="after")e[3](v4);return {id:v1,user:{userName:v2},after:v3}}catch(v5){e[5](v5)}}`,
   )
   t->assertSchemaCode(
     ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[5](v1);let v2=v1.id,v3=v1.userName,v4=v1.after,v5;typeof v2==="number"&&v2<=2147483647&&v2>=-2147483648&&v2%1==0||e[1](v2);typeof v3==="string"||e[2](v3);typeof v4==="string"||e[3](v4);for(v5 in v1)if(v5!=="id"&&v5!=="userName"&&v5!=="after")e[4](v5);return {id:v2,user:{userName:v3},after:v4}}`,
+    `i=>{try{let v0=i.status,v1=i.data;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[5](v1);let v2=v1.id,v3=v1.userName,v4=v1.after,v5;typeof v2==="number"&&v2<=2147483647&&v2>=-2147483648&&v2%1==0||e[1](v2);typeof v3==="string"||e[2](v3);typeof v4==="string"||e[3](v4);for(v5 in v1)if(v5!=="id"&&v5!=="userName"&&v5!=="after")e[4](v5);return {id:v2,user:{userName:v3},after:v4}}catch(v6){e[6](v6)}}`,
   )
 
   let failingCreateGame = Rest.route(() => {
@@ -433,11 +433,11 @@ asyncTest("Test request with mixed body and header data", async t => {
 
   t->assertSchemaCode(
     ~schema=(createGame->Rest.params).inputSchema,
-    `i=>{let v0=i.body,v3=i.headers;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);let v4;try{v4=e[3](v3["x-version"])}catch(x){e[4](x)}typeof v4==="number"&&v4<=2147483647&&v4>=-2147483648&&v4%1==0||e[5](v4);return {userName:v1,version:v4}}`,
+    `i=>{try{let v0=i.body,v3=i.headers;typeof v0==="object"&&v0&&!Array.isArray(v0)||e[2](v0);let v1=v0.user_name,v2;typeof v1==="string"||e[0](v1);for(v2 in v0)if(v2!=="user_name")e[1](v2);let v4;try{v4=e[3](v3["x-version"])}catch(x){e[4](x)}typeof v4==="number"&&v4<=2147483647&&v4>=-2147483648&&v4%1==0||e[5](v4);return {userName:v1,version:v4}}catch(v5){e[6](v5)}}`,
   )
   t->assertSchemaCode(
     ~schema=((createGame->Rest.params).responses->Array.getUnsafe(0)).schema,
-    `i=>{let v0=i.status,v1=i.data,v4=i.headers;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[3](v1);let v2=v1.user_name,v3;typeof v2==="string"||e[1](v2);for(v3 in v1)if(v3!=="user_name")e[2](v3);let v5;try{v5=e[4](v4["x-version"])}catch(x){e[5](x)}typeof v5==="number"&&v5<=2147483647&&v5>=-2147483648&&v5%1==0||e[6](v5);return {userName:v2,version:v5}}`,
+    `i=>{try{let v0=i.status,v1=i.data,v4=i.headers;v0===200||e[0](v0);typeof v1==="object"&&v1&&!Array.isArray(v1)||e[3](v1);let v2=v1.user_name,v3;typeof v2==="string"||e[1](v2);for(v3 in v1)if(v3!=="user_name")e[2](v3);let v5;try{v5=e[4](v4["x-version"])}catch(x){e[5](x)}typeof v5==="number"&&v5<=2147483647&&v5>=-2147483648&&v5%1==0||e[6](v5);return {userName:v2,version:v5}}catch(v6){e[7](v6)}}`,
   )
 })
 
