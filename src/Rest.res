@@ -1,6 +1,5 @@
 @@uncurried
 
-open RescriptSchema
 
 module Exn = {
   type error
@@ -25,6 +24,9 @@ module Promise = {
 }
 
 module Option = {
+  // Shadows the stdlib module, so it has to carry it forward for the rest of the file.
+  include Option
+
   let unsafeSome: 'a => option<'a> = Obj.magic
   let unsafeUnwrap: option<'a> => 'a = Obj.magic
 }
@@ -313,88 +315,101 @@ let rec parsePath = (path: string, ~pathItems, ~pathParams) => {
   }
 }
 
-let coerceSchema = schema => {
-  schema->S.preprocess(s => {
-    let tagged = switch s.schema->S.classify {
-    | Option(optionalSchema) => optionalSchema->S.classify
-    | tagged => tagged
+// Sury flattens nested unions and spells `S.option(X)` as an `X | undefined`
+// union, so a union coerces per member: each one reads the raw value the way
+// its own type wants.
+let coerceValue = (value, schema) =>
+  switch schema {
+  | S.Boolean(_) =>
+    switch value->Obj.magic {
+    | "true" => true->Obj.magic
+    | "false" => false->Obj.magic
+    | _ => value
     }
-    switch tagged {
-    | Literal(Boolean(_))
-    | Bool => {
-        parser: unknown =>
-          switch unknown->Obj.magic {
-          | "true" => true
-          | "false" => false
-          | _ => unknown->Obj.magic
-          }->Obj.magic,
+  | S.Number(_) => {
+      let float = %raw(`+value`)
+      if Float.isNaN(float) {
+        value
+      } else {
+        float->Obj.magic
       }
-    | Literal(Number(_))
-    | Int
-    | Float => {
-        parser: unknown => {
-          let float = %raw(`+unknown`)
-          if Float.isNaN(float) {
-            unknown
-          } else {
-            float->Obj.magic
-          }
-        },
-      }
-    | String
-    | Literal(String(_))
-    | Union(_)
-    | Never => {}
-    | _ => {}
     }
-  })
-}
+  | _ => value
+  }
 
-let stripInPlace = schema => (schema->S.classify->Obj.magic)["unknownKeys"] = S.Strip
-let getSchemaField = (schema, fieldName): option<S.item> =>
-  (schema->S.classify->Obj.magic)["fields"]->Dict.getUnsafe(fieldName)
+// A union carrying its own refinement or conversion is a normal schema rather
+// than a union (Sury's CODEC_SPEC.md), and rebuilding it from `anyOf` would
+// drop what it carries. `decoder`/`encoder` are the compiled dispatch every
+// union has, not own logic; `refiner` has no field on `S.untagged`.
+let carriesOwnLogic = (schema: S.t<'value>) =>
+  %raw(`s => s.refiner !== undefined`)(schema) || (schema->S.untag).to->Option.isSome
 
-type typeValidation = (unknown, ~inputVar: string) => string
-let removeTypeValidationInPlace = schema => (schema->Obj.magic)["f"] = ()
-let setTypeValidationInPlace = (schema, typeValidation: typeValidation) =>
-  (schema->Obj.magic)["f"] = typeValidation
-let unsafeGetTypeValidationInPlace = (schema): typeValidation => (schema->Obj.magic)["f"]
+// `S.to` replaces the preprocessor rescript-schema distributed over a union's
+// members. Encoding is the identity the preprocessor's missing serializer was.
+let coerceMember = member =>
+  S.any->S.to(
+    member,
+    ~custom={
+      decode: Sync(value => value->Obj.magic->coerceValue(member)->Obj.magic),
+      encode: Sync(Obj.magic),
+    },
+  )
 
+let coerceSchema = (schema: S.t<'value>): S.t<'value> =>
+  switch schema {
+  | S.AnyOf({anyOf}) if !(schema->carriesOwnLogic) =>
+    S.union(anyOf->Array.map(coerceMember))->Obj.magic
+  | _ => coerceMember(schema)->Obj.magic
+  }
+
+// Both are in-place on purpose: the schema is already wired into the object
+// being defined, so `S.strip`/`S.noValidation` returning a new one is no use
+// here.
+let stripInPlace = schema => (schema->Obj.magic)["additionalItems"] = "strip"
+let getSchemaField = (schema, fieldName): option<S.t<unknown>> =>
+  (schema->S.untag).properties->Option.getUnsafe->Dict.get(fieldName)
+
+let removeTypeValidationInPlace = schema => (schema->Obj.magic)["noValidation"] = true
+
+// Sury refuses to flatten a transformed object, so both directions have to be
+// a plain object - `S.object(s => ...)` renames fields and carries one.
 let isNestedFlattenSupported = schema =>
-  switch schema->S.classify {
-  | Object({advanced: false}) =>
-    switch schema
-    ->S.reverse
-    ->S.classify {
-    | Object({advanced: false}) => true
+  switch schema {
+  | S.Object(_) if !(schema->carriesOwnLogic) =>
+    switch schema->S.reverse {
+    | S.Object(_) as reversed => !(reversed->carriesOwnLogic)
     | _ => false
     }
   | _ => false
   }
 
-let bearerAuthSchema = S.string->S.transform(s => {
-  serializer: token => {
-    `Bearer ${token}`
+let bearerAuthSchema = S.string->S.to(
+  S.string,
+  ~custom={
+    decode: Sync(
+      string =>
+        switch string->String.split(" ") {
+        | ["Bearer", token] => token
+        | _ => JsError.throwWithMessage("Invalid Bearer token")
+        },
+    ),
+    encode: Sync(token => `Bearer ${token}`),
   },
-  parser: string => {
-    switch string->String.split(" ") {
-    | ["Bearer", token] => token
-    | _ => s.fail("Invalid Bearer token")
-    }
-  },
-})
+)
 
-let basicAuthSchema = S.string->S.transform(s => {
-  serializer: token => {
-    `Basic ${token}`
+let basicAuthSchema = S.string->S.to(
+  S.string,
+  ~custom={
+    decode: Sync(
+      string =>
+        switch string->String.split(" ") {
+        | ["Basic", token] => token
+        | _ => JsError.throwWithMessage("Invalid Basic token")
+        },
+    ),
+    encode: Sync(token => `Basic ${token}`),
   },
-  parser: string => {
-    switch string->String.split(" ") {
-    | ["Basic", token] => token
-    | _ => s.fail("Invalid Basic token")
-    }
-  },
-})
+)
 
 let params = route => {
   switch (route->Obj.magic)["_rest"]->(Obj.magic: unknown => option<routeParams<'input, 'output>>) {
@@ -463,9 +478,8 @@ let params = route => {
               }
             },
             rawBody: schema => {
-              let isNonStringBased = switch schema->S.classify {
-              | Literal(String(_))
-              | String => false
+              let isNonStringBased = switch schema {
+              | S.String(_) => false
               | _ => true
               }
               if isNonStringBased {
@@ -499,21 +513,21 @@ let params = route => {
         })
 
         {
-          // The input input is guaranteed to be an object, so we reset the rescript-schema type filter here
+          // The input is guaranteed to be an object, so the type validation is reset here
           inputSchema->stripInPlace
           inputSchema->removeTypeValidationInPlace
           switch inputSchema->getSchemaField("headers") {
-          | Some({schema}) =>
+          | Some(schema) =>
             schema->stripInPlace
             schema->removeTypeValidationInPlace
           | None => ()
           }
           switch inputSchema->getSchemaField("params") {
-          | Some({schema}) => schema->removeTypeValidationInPlace
+          | Some(schema) => schema->removeTypeValidationInPlace
           | None => ()
           }
           switch inputSchema->getSchemaField("query") {
-          | Some({schema}) => schema->removeTypeValidationInPlace
+          | Some(schema) => schema->removeTypeValidationInPlace
           | None => ()
           }
         }
@@ -565,19 +579,10 @@ let params = route => {
           }
           schema->stripInPlace
           schema->removeTypeValidationInPlace
-          let dataSchema = (schema->getSchemaField("data")->Option.unsafeUnwrap).schema
+          let dataSchema = schema->getSchemaField("data")->Option.unsafeUnwrap
           builder.dataSchema = dataSchema->Option.unsafeSome
-          switch dataSchema->S.classify {
-          | Literal(_) => {
-              let dataTypeValidation = dataSchema->unsafeGetTypeValidationInPlace
-              schema->setTypeValidationInPlace((b, ~inputVar) =>
-                dataTypeValidation(b, ~inputVar=`${inputVar}.data`)
-              )
-            }
-          | _ => ()
-          }
           switch schema->getSchemaField("headers") {
-          | Some({schema}) =>
+          | Some(schema) =>
             schema->stripInPlace
             schema->removeTypeValidationInPlace
           | None => ()
@@ -722,7 +727,7 @@ let getCompletePath = (~baseUrl, ~pathItems, ~maybeQuery, ~maybeParams, ~jsonQue
 
 let url = (route, input, ~baseUrl="") => {
   let {pathItems, inputSchema} = route->params
-  let data = input->S.reverseConvertOrThrow(inputSchema)->Obj.magic
+  let data = input->S.convertOrThrow(~from=inputSchema, ~to=S.unknown)->Obj.magic
   getCompletePath(
     ~baseUrl,
     ~pathItems,
@@ -759,7 +764,7 @@ let fetch = (type input response, route: route<input, response>, input, ~client=
     }
   }
 
-  let data = input->S.reverseConvertOrThrow(inputSchema)->Obj.magic
+  let data = input->S.convertOrThrow(~from=inputSchema, ~to=S.unknown)->Obj.magic
 
   if data["body"] !== %raw(`void 0`) {
     if !isRawBody {
@@ -797,18 +802,19 @@ let fetch = (type input response, route: route<input, response>, input, ~client=
       panic(error.contents)
     | Some(response) =>
       try fetcherResponse
-      ->S.parseOrThrow(response.schema)
+      ->S.parseOrThrow(~to=response.schema)
       ->(Obj.magic: unknown => response) catch {
-      | S.Raised({path, code: InvalidType({expected, received})}) if path === S.Path.empty =>
-        panic(
-          `Failed parsing response data. Reason: Expected ${(
-              expected->getSchemaField("data")->Option.unsafeUnwrap
-            ).schema->S.name}, received ${(received->Obj.magic)["data"]->Obj.magic}`,
-        )
-      | S.Raised(error) =>
-        panic(
-          `Failed parsing response at ${error.path->S.Path.toString}. Reason: ${error->S.Error.reason}`,
-        )
+      | S.Exn(error) =>
+        switch error->S.Error.classify {
+        // Sury reports the failing field, so the data error arrives at "data"
+        // rather than at the root with the whole response object.
+        | InvalidInput({path, expected, input}) if path->S.Path.toText === "data" =>
+          panic(
+            `Failed parsing response data. Reason: Expected ${expected->S.toInputExpression}, received ${input->Obj.magic}`,
+          )
+        | _ =>
+          panic(`Failed parsing response at ${error.path->S.Path.toText}. Reason: ${error.reason}`)
+        }
       }
     }
   })

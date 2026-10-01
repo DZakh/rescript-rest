@@ -16,7 +16,7 @@
 - **Small package size and tree-shakable routes**  
   Routes comple to simple functions which allows tree-shaking only possible with ReScript.
 
-> ⚠️ **rescript-rest** relies on **rescript-schema** which uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
+> ⚠️ **rescript-rest** relies on **[Sury](https://github.com/DZakh/sury)** which uses `eval` for parsing. It's usually fine but might not work in some environments like Cloudflare Workers or third-party scripts used on pages with the [script-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src) header.
 
 ## Super Simple Example
 
@@ -123,7 +123,7 @@ let _ = app->Fastify.listen({port: 3000})
 
 ## Install
 
-Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) with `rescript-schema` ([instruction](https://github.com/DZakh/rescript-schema/blob/main/docs/rescript-usage.md#install)).
+Install peer dependencies `rescript` ([instruction](https://rescript-lang.org/docs/manual/latest/installation)) with `sury` ([instruction](https://github.com/DZakh/sury/blob/main/docs/rescript-usage.md#install)).
 
 And ReScript Rest itself:
 
@@ -195,7 +195,7 @@ let result = await getPost->Rest.fetch(
 ) // ℹ️ It'll do a GET request to http://localhost:3000/api/author/d7fa3ac6-5bfa-4322-bb2b-317ca629f61c/posts/1
 ```
 
-If you would like to run validations or transformations on the path parameters, you can use [`rescript-schema`](https://github.com/DZakh/rescript-schema) features for this. Note that the parameter names in the `s.param` **must** match the parameter names in the `path` string.
+If you would like to run validations or transformations on the path parameters, you can use [Sury](https://github.com/DZakh/sury) features for this. Note that the parameter names in the `s.param` **must** match the parameter names in the `path` string.
 
 ### Query Parameters
 

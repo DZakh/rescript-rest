@@ -1,5 +1,4 @@
 open Ava
-open RescriptSchema
 
 let mockClient = () => {
   Rest.client("http://localhost:3000", ~fetcher=async (_): Rest.ApiFetcher.response => {

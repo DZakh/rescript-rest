@@ -1,6 +1,5 @@
 @@uncurried
 
-open RescriptSchema
 
 module Response: {
   type numiricStatus = [

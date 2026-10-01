@@ -1,6 +1,5 @@
 @@uncurried
 
-open RescriptSchema
 
 module Obj = {
   external magic: 'a => 'b = "%identity"
@@ -220,11 +219,10 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       content->Dict.set(
         "application/json",
         {
-          schema: switch r.dataSchema->JSONSchema.make {
-          | Ok(jsonSchema) => jsonSchema
-          | Error(message) =>
+          schema: try r.dataSchema->S.toOutputJSONSchemaOrThrow catch {
+          | S.Exn(error) =>
             JsError.throwWithMessage(
-              `Failed to create JSON-Schema for response with status ${status}. Error: ${message}`,
+              `Failed to create JSON-Schema for response with status ${status}. Error: ${error.message}`,
             )
           },
         },
@@ -251,19 +249,19 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
       method: (params.method :> string),
       url: url.contents,
       handler: (request, reply) => {
-        let input = try request->S.parseOrThrow(inputSchema) catch {
-        | S.Raised(error) => {
+        let input = try request->S.parseOrThrow(~to=inputSchema) catch {
+        | S.Exn(error) => {
             reply.status(400)
             reply.send({
               "statusCode": 400,
               "error": "Bad Request",
-              "message": error->S.Error.message,
+              "message": error.message,
             })
             throw(%raw(`0`))
           }
         }
         fn({input: input})->Promise.thenResolve(implementationResult => {
-          let data: {..} = implementationResult->S.reverseConvertOrThrow(outputSchema)->Obj.magic
+          let data: {..} = implementationResult->S.convertOrThrow(~from=outputSchema, ~to=S.unknown)->Obj.magic
           let headers = data["headers"]
           if headers->Obj.magic {
             reply.headers(headers)
@@ -278,9 +276,13 @@ let route = (app: t, restRoute: Rest.route<'request, 'response>, fn) => {
     // Add request schemas only when swagger plugin enabled
     if (app->Obj.magic)["swagger"] {
       let addSchemaFor = location =>
-        switch (inputSchema->S.classify->Obj.magic)["fields"]->Dict.getUnsafe(location) {
-        | Some(item: S.item) =>
-          switch item.schema->JSONSchema.make {
+        switch (inputSchema->S.untag).properties->Option.getUnsafe->Dict.get(location) {
+        | Some(itemSchema) =>
+          // The output side: a query, path or header param reaches the schema
+          // as a raw string and is coerced, so its input type says nothing.
+          switch try Ok(itemSchema->S.toOutputJSONSchemaOrThrow) catch {
+          | S.Exn(error) => Error(error.message)
+          } {
           | Ok(jsonSchema) =>
             routeSchema
             ->(Obj.magic: routeSchema => dict<JSONSchema.t>)
